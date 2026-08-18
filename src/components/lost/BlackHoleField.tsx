@@ -18,6 +18,76 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { hashNoise } from "@/lib/three/math";
+
+/** Must match MAX_GALAXIES in the fragment shader below. */
+const MAX_GALAXIES = 24;
+
+/** Colour pairs: core tone, arm/halo tone. */
+const GALAXY_PALETTES: readonly [string, string][] = [
+  ["#fff3e0", "#8fb4ff"],
+  ["#ffe9c9", "#ff9f7a"],
+  ["#f2e9ff", "#b78bff"],
+  ["#e8f0ff", "#6fd8d0"],
+  ["#fff0e6", "#ffd28a"],
+  ["#eae4ff", "#7a90ff"],
+];
+
+/**
+ * Fixed, hashed galaxy field for the black hole shader: same seed every
+ * visit, spread evenly over the whole sky rather than only around the hole.
+ */
+function buildGalaxyUniforms(count: number) {
+  const dir: THREE.Vector3[] = [];
+  const shape: THREE.Vector4[] = [];
+  const colorA: THREE.Vector4[] = [];
+  const colorB: THREE.Vector4[] = [];
+
+  for (let i = 0; i < MAX_GALAXIES; i += 1) {
+    if (i >= count) {
+      dir.push(new THREE.Vector3(0, 1, 0));
+      shape.push(new THREE.Vector4(0, 1, 0, 0));
+      colorA.push(new THREE.Vector4(0, 0, 0, 0));
+      colorB.push(new THREE.Vector4(0, 0, 0, 0));
+      continue;
+    }
+
+    const seed = i * 23 + 7;
+    const theta = hashNoise(seed) * Math.PI * 2;
+    const phi = Math.acos(hashNoise(seed + 1) * 2 - 1);
+    dir.push(
+      new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta),
+      ),
+    );
+
+    // Skewed towards small: a few galaxies read big and close, most are faint specks.
+    const sizeRoll = Math.pow(hashNoise(seed + 2), 3);
+    const angularRadius = 0.02 + sizeRoll * 0.17;
+    const isElliptical = hashNoise(seed + 3) < 0.35;
+    const squash = isElliptical
+      ? 0.55 + hashNoise(seed + 4) * 0.35
+      : 0.32 + hashNoise(seed + 4) * 0.35;
+    const roll = hashNoise(seed + 5) * Math.PI * 2;
+    const armStrength = isElliptical ? 0.1 : 0.55 + hashNoise(seed + 6) * 0.45;
+    shape.push(new THREE.Vector4(angularRadius, squash, roll, armStrength));
+
+    const palette =
+      GALAXY_PALETTES[Math.floor(hashNoise(seed + 7) * GALAXY_PALETTES.length) % GALAXY_PALETTES.length];
+    const core = new THREE.Color(palette[0]);
+    const arm = new THREE.Color(palette[1]);
+    const noiseSeed = hashNoise(seed + 8) * 40;
+    const opacity = 0.4 + hashNoise(seed + 9) * 0.4;
+
+    colorA.push(new THREE.Vector4(core.r, core.g, core.b, noiseSeed));
+    colorB.push(new THREE.Vector4(arm.r, arm.g, arm.b, opacity));
+  }
+
+  return { dir, shape, colorA, colorB };
+}
+
 const VERTEX = /* glsl */ `
   void main() {
     // The geometry is a unit quad used only to cover the frame.
@@ -36,6 +106,22 @@ const FRAGMENT = /* glsl */ `
   uniform float uAspect;
   /* 1 on capable hardware, lower where the tier says to spend less. */
   uniform float uQuality;
+
+  /*
+   * Galaxies, as a fixed list rather than a procedural grid. Each has its own
+   * sky direction and is drawn in the tangent plane at that direction, so its
+   * shape never depends on the cube face grid the point stars share, and it
+   * cannot be cut off by a neighbouring cell.
+   */
+  #define MAX_GALAXIES 24
+  uniform int uGalaxyCount;
+  uniform vec3 uGalaxyDir[MAX_GALAXIES];
+  /* x: angular radius, y: squash, z: roll, w: spiral arm strength. */
+  uniform vec4 uGalaxyShape[MAX_GALAXIES];
+  /* rgb: core colour, a: noise seed. */
+  uniform vec4 uGalaxyColorA[MAX_GALAXIES];
+  /* rgb: arm/halo colour, a: opacity. */
+  uniform vec4 uGalaxyColorB[MAX_GALAXIES];
 
   out vec4 fragColor;
 
@@ -213,6 +299,63 @@ const FRAGMENT = /* glsl */ `
       }
     }
 
+    /*
+     * Distant galaxies, drawn the same way as the stars above: as blobs read
+     * off the bent ray direction rather than as scene geometry, so the same
+     * lensing that arcs the stars arcs these too.
+     *
+     * Each galaxy gets its own tangent plane at its own sky direction instead
+     * of sharing the stars' cube face grid. A shared grid distorts hard near
+     * the edges and corners of its cube faces, which is what read as
+     * elongation with no hole nearby, and clips any shape too big for its
+     * cell. A tangent plane centred on the galaxy itself has neither problem:
+     * it is undistorted near its own centre and has no cell border to clip
+     * against.
+     */
+    for (int i = 0; i < MAX_GALAXIES; i++) {
+      if (i >= uGalaxyCount) break;
+
+      vec3 gdir = uGalaxyDir[i];
+      vec4 shape = uGalaxyShape[i];
+      float angularRadius = shape.x;
+
+      /* Cheap reject before the tangent basis is built: well outside the
+         blob's angular reach, including the squash, no matter its roll. */
+      float reach = angularRadius * 3.4;
+      if (dot(dir, gdir) < cos(reach)) continue;
+
+      vec3 up = abs(gdir.y) > 0.99 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
+      vec3 right = normalize(cross(up, gdir));
+      vec3 trueUp = cross(gdir, right);
+      vec2 local = vec2(dot(dir, right), dot(dir, trueUp)) / angularRadius;
+
+      float squash = shape.y;
+      float roll = shape.z;
+      float armStrength = shape.w;
+      float ca = cos(roll);
+      float sa = sin(roll);
+      vec2 rotated = vec2(local.x * ca - local.y * sa, local.x * sa + local.y * ca);
+      vec2 shaped = vec2(rotated.x, rotated.y / squash);
+      float r = length(shaped);
+      if (r >= 1.1) continue;
+
+      vec4 colorA = uGalaxyColorA[i];
+      vec4 colorB = uGalaxyColorB[i];
+      float seed = colorA.a;
+
+      float armAngle = atan(shaped.y, shaped.x);
+      float wind = log(r + 0.1) * 2.4;
+      float spiral = sin(armAngle * 2.0 - wind + seed * 20.0) * 0.5 + 0.5;
+      float clumps = fbm3(vec3(shaped * 2.4, seed * 12.0), 3);
+
+      float core = exp(-r * r * 9.0);
+      float arms = smoothstep(0.2, 0.9, spiral * clumps) * smoothstep(1.1, 0.2, r);
+      float glow = clamp(core + arms * armStrength, 0.0, 1.0);
+
+      vec3 galaxyColour = mix(colorB.rgb, colorA.rgb, core);
+      colour += galaxyColour * glow * starMask * colorB.a;
+    }
+
     return colour;
   }
 
@@ -337,8 +480,11 @@ export function BlackHoleField({ quality = 1 }: { quality?: number }) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const { size } = useThree();
 
-  const uniforms = useMemo(
-    () => ({
+  const uniforms = useMemo(() => {
+    const galaxyCount = quality > 0.75 ? MAX_GALAXIES : Math.round(MAX_GALAXIES * 0.5);
+    const galaxies = buildGalaxyUniforms(galaxyCount);
+
+    return {
       uRes: { value: new THREE.Vector2(1, 1) },
       uTime: { value: 0 },
       uCamPos: { value: new THREE.Vector3() },
@@ -346,9 +492,16 @@ export function BlackHoleField({ quality = 1 }: { quality?: number }) {
       uTanHalfFov: { value: 0.5 },
       uAspect: { value: 1 },
       uQuality: { value: 1 },
-    }),
-    [],
-  );
+      uGalaxyCount: { value: galaxyCount },
+      uGalaxyDir: { value: galaxies.dir },
+      uGalaxyShape: { value: galaxies.shape },
+      uGalaxyColorA: { value: galaxies.colorA },
+      uGalaxyColorB: { value: galaxies.colorB },
+    };
+    // Rebuilding on every quality tweak would reroll the field; it only needs
+    // to match the tier this scene mounted with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /*
    * Uniforms are written through the material rather than through the object

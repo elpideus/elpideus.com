@@ -21,11 +21,14 @@ export function NavRail() {
   const focus = useJourney((state) => state.focus);
   const goToIndex = useJourney((state) => state.goToIndex);
   const setHovered = useJourney((state) => state.setHovered);
+  const setRailHovered = useJourney((state) => state.setRailHovered);
 
   return (
     <nav
       className="pointer-events-auto fixed right-6 top-1/2 z-30 -translate-y-1/2"
       aria-label="Star chart"
+      onPointerEnter={() => setRailHovered(true)}
+      onPointerLeave={() => setRailHovered(false)}
     >
       <ol className="space-y-1">
         {JOURNEY.map((id, position) => {

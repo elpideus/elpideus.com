@@ -43,12 +43,23 @@ export function Cursor() {
     if (!fine) return;
 
     document.body.dataset.customCursor = "on";
-     
+
     setMode(getCursorMode());
     const unsubscribe = subscribeCursor(setMode);
 
+    // The reticle portals into body, which stops painting once any element
+    // goes fullscreen (browsers only render the fullscreen element's own
+    // subtree), leaving no cursor at all. Hand the system cursor back for
+    // as long as that lasts.
+    function syncFullscreenCursor() {
+      if (document.fullscreenElement) delete document.body.dataset.customCursor;
+      else document.body.dataset.customCursor = "on";
+    }
+    document.addEventListener("fullscreenchange", syncFullscreenCursor);
+
     return () => {
       delete document.body.dataset.customCursor;
+      document.removeEventListener("fullscreenchange", syncFullscreenCursor);
       unsubscribe();
     };
   }, []);

@@ -38,7 +38,7 @@ function Svg({ size = 20, children, ...props }: IconProps) {
 
 /* Social and contact marks. */
 
-const YouTubeIcon = (props: IconProps) => (
+export const YouTubeIcon = (props: IconProps) => (
   <Svg {...props}>
     <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
     <path d="M10.3 9.4 15.4 12l-5.1 2.6z" fill="currentColor" stroke="none" />
@@ -117,6 +117,46 @@ export const ArrowIcon = (props: IconProps) => (
 export const PlayIcon = (props: IconProps) => (
   <Svg {...props}>
     <path d="M8.5 5.8 18 12l-9.5 6.2z" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const PauseIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M8 5.5v13M16 5.5v13" strokeWidth="2.2" />
+  </Svg>
+);
+
+export const VolumeIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 9.5v5h3.5l5 4v-13l-5 4z" />
+    <path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" />
+  </Svg>
+);
+
+export const MuteIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M4 9.5v5h3.5l5 4v-13l-5 4z" />
+    <path d="m16 10 4.5 4M20.5 10 16 14" />
+  </Svg>
+);
+
+export const FullscreenIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <path d="M8.5 4.5h-3a1 1 0 0 0-1 1v3M15.5 4.5h3a1 1 0 0 1 1 1v3M8.5 19.5h-3a1 1 0 0 1-1-1v-3M15.5 19.5h3a1 1 0 0 0 1-1v-3" />
+  </Svg>
+);
+
+export const LetterboxIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="2.5" y="5.5" width="19" height="13" rx="1.5" />
+    <path d="M2.5 8.5h19M2.5 15.5h19" />
+  </Svg>
+);
+
+export const CaptionsIcon = (props: IconProps) => (
+  <Svg {...props}>
+    <rect x="2.5" y="5.5" width="19" height="13" rx="2.5" />
+    <path d="M8.5 10.8c-.4-.5-1-.8-1.7-.8-1.2 0-2.1 1-2.1 2.2s.9 2.2 2.1 2.2c.7 0 1.3-.3 1.7-.8M16.5 10.8c-.4-.5-1-.8-1.7-.8-1.2 0-2.1 1-2.1 2.2s.9 2.2 2.1 2.2c.7 0 1.3-.3 1.7-.8" />
   </Svg>
 );
 

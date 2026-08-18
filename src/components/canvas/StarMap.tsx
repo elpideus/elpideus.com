@@ -15,6 +15,7 @@ import { Asteroids } from "./Asteroids";
 import { CameraRig } from "./CameraRig";
 import { Constellation } from "./Constellation";
 import { Effects } from "./Effects";
+import { Galaxies } from "./Galaxies";
 import { Nebula } from "./Nebula";
 import { Orbitals } from "./Orbitals";
 import { Projector } from "./Projector";
@@ -48,6 +49,7 @@ export function StarMap() {
         <color attach="background" args={["#03040a"]} />
         <Suspense fallback={null}>
           <Nebula intensity={profile.reducedMotion ? 0.5 : 0.7} />
+          <Galaxies tier={profile.tier} radiusRange={[260, 900]} />
           <Starfield />
           <Asteroids tier={profile.tier} />
           <Constellation />

@@ -173,6 +173,44 @@ body[data-custom-cursor="on"] * {
       transparent 3px
     );
   }
+
+  /* Custom player scrub and volume bars, so the browser default thumb never appears. */
+  .u-scrub {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .u-scrub::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .u-scrub::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    margin-top: -3.5px;
+    border-radius: 999px;
+    background: var(--color-signal);
+    box-shadow: 0 0 6px 0 color-mix(in srgb, var(--color-signal) 70%, transparent);
+  }
+
+  .u-scrub::-moz-range-track {
+    height: 3px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .u-scrub::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border: none;
+    border-radius: 999px;
+    background: var(--color-signal);
+    box-shadow: 0 0 6px 0 color-mix(in srgb, var(--color-signal) 70%, transparent);
+  }
 }
 
 @keyframes panel-in {

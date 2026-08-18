@@ -9,7 +9,7 @@
  * and replays the entrance animation.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getStar } from "@/lib/graph/nodes";
 import { PanelKind, StarClass, StarDepth } from "@/lib/graph/types";
@@ -64,11 +64,13 @@ function renderPanel(kind: PanelKind, ref: string | undefined) {
 export function FocusPanel() {
   const focus = useJourney((state) => state.focus);
   const ready = useJourney((state) => state.ready);
+  const railHovered = useJourney((state) => state.railHovered);
   const panel = useRef<HTMLElement>(null);
   const star = getStar(focus);
 
   const [moved, setMoved] = useState(panelWasMoved);
   const [dragging, setDragging] = useState(false);
+  const [entered, setEntered] = useState(false);
 
   useAnchoredElement(panel, focus, {
     offsetX: PANEL_OFFSET_X,
@@ -96,6 +98,10 @@ export function FocusPanel() {
     },
   });
 
+  useEffect(() => {
+    setEntered(false);
+  }, [focus]);
+
   const resetPosition = useCallback(() => {
     resetPanelOffset();
     setMoved(false);
@@ -115,9 +121,12 @@ export function FocusPanel() {
       <div
         key={focus}
         className="relative"
+        onAnimationEnd={() => setEntered(true)}
         style={{
-          animation: ready ? "panel-in 700ms var(--ease-out-expo) both" : undefined,
-          opacity: ready ? undefined : 0,
+          animation: ready && !entered ? "panel-in 700ms var(--ease-out-expo) both" : undefined,
+          opacity: !ready ? 0 : railHovered ? 0 : 1,
+          pointerEvents: railHovered ? "none" : undefined,
+          transition: ready ? "opacity 200ms var(--ease-out-expo)" : undefined,
         }}
       >
         {/*
@@ -185,7 +194,11 @@ export function FocusPanel() {
             </div>
           </header>
 
-          <div className="max-h-[58vh] overflow-y-auto px-5 py-4" data-native-scroll>
+          <div
+            className="max-h-[58vh] px-5 py-4"
+            style={{ overflowY: ready && entered ? "auto" : "hidden" }}
+            data-native-scroll={ready && entered ? true : undefined}
+          >
             {renderPanel(star.panel, star.ref)}
           </div>
         </div>

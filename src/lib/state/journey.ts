@@ -48,6 +48,8 @@ export interface JourneyState {
   focus: StarId;
   /** Star under the pointer, if any. */
   hovered: StarId | null;
+  /** True while the pointer is anywhere over the nav rail, gaps included. */
+  railHovered: boolean;
   phase: TravelPhase;
   direction: TravelDirection;
   intent: TravelIntent;
@@ -61,6 +63,7 @@ export interface JourneyState {
   goToIndex: (index: number, intent?: TravelIntent, speed?: number) => void;
   focusStar: (id: StarId, intent?: TravelIntent) => void;
   setHovered: (id: StarId | null) => void;
+  setRailHovered: (value: boolean) => void;
   markSettled: () => void;
   markReady: () => void;
 }
@@ -78,6 +81,7 @@ export const useJourney = create<JourneyState>((set, get) => ({
   index: 0,
   focus: JOURNEY[0],
   hovered: null,
+  railHovered: false,
   phase: TravelPhase.Settled,
   direction: TravelDirection.Forward,
   intent: TravelIntent.Deeplink,
@@ -86,7 +90,12 @@ export const useJourney = create<JourneyState>((set, get) => ({
   ready: false,
 
   step(delta, intent = TravelIntent.Scroll, speed = 0.5) {
-    const { index } = get();
+    const { index, focus } = get();
+    const focusedStar = getStar(focus);
+    if (focusedStar.depth === StarDepth.Satellite) {
+      get().goToIndex(index, intent, speed);
+      return;
+    }
     get().goToIndex(index + delta, intent, speed);
   },
 
@@ -140,6 +149,11 @@ export const useJourney = create<JourneyState>((set, get) => ({
   setHovered(id) {
     if (get().hovered === id) return;
     set({ hovered: id });
+  },
+
+  setRailHovered(value) {
+    if (get().railHovered === value) return;
+    set({ railHovered: value });
   },
 
   markSettled() {
