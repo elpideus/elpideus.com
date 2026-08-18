@@ -1,0 +1,36 @@
+---
+title: elpideus.com
+description: How the scroll driven star map is built, from the shader layer up to the content model.
+template: splash
+hero:
+  tagline: A personal site shaped as a 3D star map. This is the manual for it.
+  actions:
+    - text: Read the overview
+      link: /overview/
+      icon: right-arrow
+    - text: Source on GitHub
+      link: https://github.com/elpideus/elpideus.com
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid stagger>
+  <Card title="One page, nine stars" icon="star">
+    Every section of the site is a star in 3D space. Scrolling flies between them, clicking one
+    jumps straight to it, and hovering shows what lives there.
+  </Card>
+  <Card title="Two layers" icon="puzzle">
+    A WebGL canvas draws the sky and the graph. A DOM overlay carries every readable word, so the
+    content stays selectable, accessible and cheap to change.
+  </Card>
+  <Card title="Content as data" icon="document">
+    Copy, projects, timeline and the graph itself are plain TypeScript modules. Adding a star is a
+    data change, not a refactor.
+  </Card>
+  <Card title="Generated curriculum" icon="seti:pdf">
+    The CV is rendered on demand from the same repository content, as real text an applicant
+    tracking system can parse.
+  </Card>
+</CardGrid>

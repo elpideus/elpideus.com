@@ -1,0 +1,191 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens.
+ *
+ * The site is dark only by intent, so there is a single palette. Names describe
+ * the role rather than the colour, which keeps component code readable when the
+ * palette is tuned.
+ */
+@theme {
+  --color-void: #03040a;
+  --color-abyss: #070a16;
+  --color-hull: #0d1322;
+  --color-frost: #e9f1ff;
+  --color-mist: #93a4c4;
+  --color-dim: #62718f;
+  --color-signal: #7fd7ff;
+  --color-signal-deep: #2f7fb8;
+  --color-ember: #ffb27a;
+  --color-beacon: #fff1d4;
+  --color-verdant: #8fe6d8;
+  --color-warning: #ff8f6a;
+
+  --font-display: var(--font-space-grotesk), "Segoe UI", system-ui, sans-serif;
+  --font-body: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "Cascadia Code", monospace;
+
+  --radius-panel: 4px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background-color: var(--color-void);
+  color: var(--color-frost);
+  font-family: var(--font-body);
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The custom cursor replaces the native one everywhere on the map. */
+body[data-custom-cursor="on"],
+body[data-custom-cursor="on"] * {
+  cursor: none !important;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-signal) 32%, transparent);
+  color: var(--color-frost);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-signal);
+  outline-offset: 3px;
+}
+
+/* Thin, dark scrollbars inside panels. */
+[data-native-scroll] {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-signal) 45%, transparent) transparent;
+}
+
+[data-native-scroll]::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-native-scroll]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-signal) 40%, transparent);
+  border-radius: 999px;
+}
+
+@layer utilities {
+  /* Frosted instrument panel: the base surface for every piece of chrome. */
+  .u-glass {
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--color-hull) 72%, transparent),
+      color-mix(in srgb, var(--color-abyss) 82%, transparent)
+    );
+    backdrop-filter: blur(14px) saturate(130%);
+    border: 1px solid color-mix(in srgb, var(--color-signal) 16%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-void) 60%, transparent),
+      0 24px 60px -30px rgb(0 0 0 / 0.9),
+      inset 0 1px 0 color-mix(in srgb, var(--color-frost) 6%, transparent);
+  }
+
+  /* Corner ticks that give panels an instrument, heads up display feel. */
+  .u-ticks {
+    position: relative;
+  }
+
+  .u-ticks::before,
+  .u-ticks::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: 1px solid color-mix(in srgb, var(--color-signal) 55%, transparent);
+    pointer-events: none;
+  }
+
+  .u-ticks::before {
+    top: -1px;
+    left: -1px;
+    border-right: 0;
+    border-bottom: 0;
+  }
+
+  .u-ticks::after {
+    right: -1px;
+    bottom: -1px;
+    border-left: 0;
+    border-top: 0;
+  }
+
+  /* Uppercase micro label used for section eyebrows and metadata. */
+  .u-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--color-dim);
+  }
+
+  .u-hairline {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-signal) 40%, transparent),
+      transparent
+    );
+  }
+
+  /* Scanline sheen used by holographic media frames. */
+  .u-scanlines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-signal) 9%, transparent) 0px,
+      color-mix(in srgb, var(--color-signal) 9%, transparent) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes hologram-drift {
+  0%,
+  100% {
+    background-position: 0 0;
+  }
+  50% {
+    background-position: 0 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

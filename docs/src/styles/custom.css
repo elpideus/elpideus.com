@@ -1,0 +1,15 @@
+/* Dark, cold palette so the docs feel related to the site itself. */
+:root {
+  --sl-color-accent-low: #10243a;
+  --sl-color-accent: #2f7fb8;
+  --sl-color-accent-high: #a9dcff;
+  --sl-color-bg: #070a16;
+  --sl-color-bg-nav: #05070f;
+  --sl-color-bg-sidebar: #05070f;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d6ecff;
+  --sl-color-accent: #1f6ea3;
+  --sl-color-accent-high: #0b2438;
+}
