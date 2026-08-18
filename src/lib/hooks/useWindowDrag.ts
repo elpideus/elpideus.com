@@ -37,8 +37,10 @@ export function useWindowDrag(offset: DragOffset, options: WindowDragOptions = {
   return useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
       // Left button only, and never when the press landed on a control.
+      // `Element`, not `HTMLElement`: an icon button's press often lands on its
+      // inline SVG, and SVGElement does not extend HTMLElement.
       if (event.button !== 0) return;
-      if (event.target instanceof HTMLElement && event.target.closest("button, a, input")) return;
+      if (event.target instanceof Element && event.target.closest("button, a, input")) return;
 
       event.preventDefault();
       event.stopPropagation();

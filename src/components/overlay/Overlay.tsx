@@ -14,6 +14,7 @@ import { Header } from "./Header";
 import { HintBar } from "./HintBar";
 import { IntroVeil } from "./IntroVeil";
 import { NavRail } from "./NavRail";
+import { OrbitalTooltip } from "./OrbitalTooltip";
 import { SkyTooltip } from "./SkyTooltip";
 import { StarTooltip } from "./StarTooltip";
 import { useHashRoute } from "@/lib/hooks/useHashRoute";
@@ -28,6 +29,7 @@ export function Overlay() {
       <Header />
       <FocusPanel />
       <StarTooltip />
+      <OrbitalTooltip />
       <SkyTooltip />
       <NavRail />
       <HintBar />

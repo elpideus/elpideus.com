@@ -9,7 +9,8 @@
  * map costs zero re-renders.
  */
 
-import type { StarId } from "@/lib/graph/types";
+/** A star id, or the id of anything else anchored to the canvas (e.g. an orbital body). */
+type AnchorId = string;
 
 export interface ScreenAnchor {
   /** Position in CSS pixels, origin at the top left of the viewport. */
@@ -21,7 +22,7 @@ export interface ScreenAnchor {
   distance: number;
 }
 
-const anchors = new Map<StarId, ScreenAnchor>();
+const anchors = new Map<AnchorId, ScreenAnchor>();
 
 /**
  * Subscribers that reposition DOM against the anchors.
@@ -48,7 +49,7 @@ export function flushAnchors(): void {
   for (const listener of listeners) listener();
 }
 
-export function writeAnchor(id: StarId, x: number, y: number, visible: boolean, distance: number): void {
+export function writeAnchor(id: AnchorId, x: number, y: number, visible: boolean, distance: number): void {
   const existing = anchors.get(id);
   if (existing) {
     existing.x = x;
@@ -60,6 +61,6 @@ export function writeAnchor(id: StarId, x: number, y: number, visible: boolean, 
   anchors.set(id, { x, y, visible, distance });
 }
 
-export function readAnchor(id: StarId): ScreenAnchor | undefined {
+export function readAnchor(id: AnchorId): ScreenAnchor | undefined {
   return anchors.get(id);
 }

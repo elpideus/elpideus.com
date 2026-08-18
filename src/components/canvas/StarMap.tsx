@@ -16,6 +16,7 @@ import { CameraRig } from "./CameraRig";
 import { Constellation } from "./Constellation";
 import { Effects } from "./Effects";
 import { Nebula } from "./Nebula";
+import { Orbitals } from "./Orbitals";
 import { Projector } from "./Projector";
 import { SkyPicker } from "./SkyPicker";
 import { StarNodes } from "./StarNodes";
@@ -51,6 +52,7 @@ export function StarMap() {
           <Asteroids tier={profile.tier} />
           <Constellation />
           <StarNodes />
+          <Orbitals />
         </Suspense>
         <CameraRig />
         <SkyPicker />

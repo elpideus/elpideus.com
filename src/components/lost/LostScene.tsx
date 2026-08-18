@@ -25,7 +25,6 @@ import {
 import * as THREE from "three";
 
 import { BlackHoleField } from "./BlackHoleField";
-import { Debris } from "./Debris";
 import { EffectTier } from "@/components/canvas/Effects";
 import { useDeviceProfile } from "@/lib/hooks/useDeviceProfile";
 import { CursorMode, setCursorMode } from "@/lib/state/cursor";
@@ -103,6 +102,24 @@ function dollyBy(delta: number): void {
  * The targets are damped rather than applied, which is what gives a drag its
  * weight and lets the idle drift blend back in without a jump.
  */
+/** Matches the map's fallback: shaders are assumed warm after this long. */
+const READY_AT_S = 1.6;
+
+/** Fires `onReady` once, the first frame past the warm-up window. */
+function ReadySignal({ onReady }: { onReady: () => void }) {
+  const fired = useRef(false);
+
+  useFrame((state) => {
+    if (fired.current) return;
+    if (state.clock.elapsedTime > READY_AT_S) {
+      fired.current = true;
+      onReady();
+    }
+  });
+
+  return null;
+}
+
 function CameraOrbit({ frozen }: { frozen: boolean }) {
   const { camera } = useThree();
   const aim = useMemo(() => new THREE.Vector3(0, 0, 0), []);
@@ -132,7 +149,13 @@ function CameraOrbit({ frozen }: { frozen: boolean }) {
   return null;
 }
 
-export function LostScene({ onHoleClick }: { onHoleClick?: () => void }) {
+export function LostScene({
+  onHoleClick,
+  onReady,
+}: {
+  onHoleClick?: () => void;
+  onReady?: () => void;
+}) {
   const profile = useDeviceProfile();
   const drag = useRef({ active: false, x: 0, y: 0, travelled: 0 });
 
@@ -173,7 +196,9 @@ export function LostScene({ onHoleClick }: { onHoleClick?: () => void }) {
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     // Anything the visitor can actually press keeps its own behaviour.
-    if (event.target instanceof HTMLElement && event.target.closest("a, button, [data-modal]")) {
+    // `Element`, not `HTMLElement`: a press on an icon button often lands on
+    // its inline SVG, and SVGElement does not extend HTMLElement.
+    if (event.target instanceof Element && event.target.closest("a, button, [data-modal]")) {
       return;
     }
 
@@ -263,8 +288,10 @@ export function LostScene({ onHoleClick }: { onHoleClick?: () => void }) {
       >
         <color attach="background" args={["#03040a"]} />
         <BlackHoleField quality={profile.tier === EffectTier.Rich ? 1 : 0.55} />
-        <Debris frozen={profile.reducedMotion} />
+        <pointLight position={[0, 0, 0]} color="#ffb27a" intensity={1900} distance={0} decay={2} />
+        <ambientLight color="#4a4468" intensity={0.35} />
         <CameraOrbit frozen={profile.reducedMotion} />
+        {onReady ? <ReadySignal onReady={onReady} /> : null}
       </Canvas>
     </div>
   );

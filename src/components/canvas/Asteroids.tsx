@@ -21,13 +21,23 @@ import * as THREE from "three";
 import { EffectTier } from "./Effects";
 import { hashNoise } from "@/lib/three/math";
 
-/** Half extent of the box the field fills, centred on the camera. */
-const HALF = new THREE.Vector3(46, 26, 70);
+/**
+ * Half extent of the box the field fills, centred on the camera.
+ *
+ * A rock teleports to the opposite face the instant it crosses one of these
+ * planes, since the box is axis aligned in world space rather than aligned to
+ * the view. The camera orbits stars on spheres up to ~30 units across and the
+ * vertical extent used to be far smaller than that, so a pan would routinely
+ * push the box past a rock still well inside the frame and pop it to the far
+ * side. Keeping every axis comfortably past the widest orbit keeps the wrap
+ * boundary outside what the visitor can actually see.
+ */
+const HALF = new THREE.Vector3(80, 80, 100);
 
 /** Rocks per tier. The field is decoration, so it is the first thing to thin. */
 const COUNT: Record<EffectTier, number> = {
-  [EffectTier.Rich]: 56,
-  [EffectTier.Lean]: 26,
+  [EffectTier.Rich]: 220,
+  [EffectTier.Lean]: 100,
   [EffectTier.Off]: 0,
 };
 

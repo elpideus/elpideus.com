@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Drift Run: the endless runner hidden behind the black hole.
+ * Trailblazing Rovers: the endless runner hidden behind the black hole.
  *
  * It is the Chrome dinosaur, moved into the fiction of the map: a rover runs
- * the Martian regolith, hops boulders and ducks under solar flares while the
- * horizon scrolls. The whole game lives in one canvas and one frame loop,
+ * the Martian regolith, hopping boulders while the horizon scrolls. The whole
+ * game lives in one canvas and one frame loop,
  * with React holding nothing but the two numbers a human reads between runs,
  * because a runner that re-rendered a component tree per frame would stutter.
  */
@@ -21,7 +21,6 @@ const GROUND_Y = 148;
 
 const GRAVITY = 2600;
 const JUMP_V = -780;
-const DUCK_GRAVITY_BOOST = 2.4;
 
 const SPEED_START = 330;
 const SPEED_MAX = 820;
@@ -30,7 +29,6 @@ const SPEED_GAIN = 9;
 const ROVER_X = 74;
 const ROVER_W = 38;
 const ROVER_H = 22;
-const DUCK_H = 13;
 
 const HI_SCORE_KEY = "elpideus:drift-run-best";
 
@@ -41,10 +39,8 @@ enum RunPhase {
   Lost = "lost",
 }
 
-/** Hazards come in two flavours, one for each of the two controls. */
 enum HazardKind {
   Debris = "debris",
-  Flare = "flare",
 }
 
 interface Hazard {
@@ -87,7 +83,6 @@ const COLOUR = {
   kick: "rgba(198, 118, 74, 0.5)",
   hazard: "#964a29",
   hazardEdge: "#c9714a",
-  flare: "#ff8f6a",
   text: "#e9f1ff",
   dim: "#62718f",
 } as const;
@@ -130,14 +125,11 @@ export function DriftRun() {
 
     let roverY = GROUND_Y - ROVER_H;
     let roverV = 0;
-    let ducking = false;
     let grounded = true;
 
     let hazards: Hazard[] = [];
     let nextHazardIn = 420;
     let groundScroll = 0;
-    /** Frame counter, used only to animate the flare wobble. */
-    let ticks = 0;
     let last = performance.now();
 
     const stars: Star[] = Array.from({ length: 70 }, () => ({
@@ -180,7 +172,6 @@ export function DriftRun() {
       distance = 0;
       roverY = GROUND_Y - ROVER_H;
       roverV = 0;
-      ducking = false;
       grounded = true;
       hazards = [];
       nextHazardIn = 420;
@@ -205,32 +196,18 @@ export function DriftRun() {
     }
 
     function spawn() {
-      // Flares only appear once the run is fast enough to make ducking read.
-      const flare = speed > 430 && Math.random() < 0.32;
-
-      if (flare) {
+      const rocks = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < rocks; i++) {
+        const w = 16 + Math.random() * 10;
+        const h = 22 + Math.random() * 20;
         hazards.push({
-          kind: HazardKind.Flare,
-          x: VIEW_W + 40,
-          y: GROUND_Y - 52,
-          w: 46,
-          h: 16,
+          kind: HazardKind.Debris,
+          x: VIEW_W + 40 + i * (w + 4),
+          y: GROUND_Y - h,
+          w,
+          h,
           seed: Math.random(),
         });
-      } else {
-        const rocks = 1 + Math.floor(Math.random() * 3);
-        for (let i = 0; i < rocks; i++) {
-          const w = 16 + Math.random() * 10;
-          const h = 22 + Math.random() * 20;
-          hazards.push({
-            kind: HazardKind.Debris,
-            x: VIEW_W + 40 + i * (w + 4),
-            y: GROUND_Y - h,
-            w,
-            h,
-            seed: Math.random(),
-          });
-        }
       }
 
       // Gap shrinks with speed but never below what a jump can clear.
@@ -238,22 +215,19 @@ export function DriftRun() {
     }
 
     function hits(hazard: Hazard): boolean {
-      const height = ducking && grounded ? DUCK_H : ROVER_H;
-      const top = ducking && grounded ? GROUND_Y - DUCK_H : roverY;
       // A little forgiveness on every side, which is what makes it feel fair.
       const pad = 4;
       return (
         ROVER_X + pad < hazard.x + hazard.w &&
         ROVER_X + ROVER_W - pad > hazard.x &&
-        top + pad < hazard.y + hazard.h &&
-        top + height - pad > hazard.y
+        roverY + pad < hazard.y + hazard.h &&
+        roverY + ROVER_H - pad > hazard.y
       );
     }
 
     function drawRover() {
-      const duck = ducking && grounded;
-      const h = duck ? DUCK_H : ROVER_H;
-      const y = duck ? GROUND_Y - DUCK_H : roverY;
+      const h = ROVER_H;
+      const y = roverY;
       const wheelR = Math.min(5, h * 0.3);
       const axle = h - wheelR;
       /* Wheels turn with the ground, not with time, so a stall reads as a stall. */
@@ -303,8 +277,8 @@ export function DriftRun() {
       ctx!.lineWidth = 0.8;
       ctx!.stroke();
 
-      if (!duck) {
-        // Mast and camera head, folded flat while ducking.
+      {
+        // Mast and camera head.
         ctx!.strokeStyle = COLOUR.hullShade;
         ctx!.lineWidth = 1.6;
         ctx!.beginPath();
@@ -360,28 +334,7 @@ export function DriftRun() {
     }
 
     function drawHazard(hazard: Hazard) {
-      if (hazard.kind === HazardKind.Flare) {
-        ctx!.save();
-        ctx!.strokeStyle = COLOUR.flare;
-        ctx!.lineWidth = 2;
-        ctx!.globalAlpha = 0.9;
-        ctx!.beginPath();
-        for (let i = 0; i <= 10; i++) {
-          const t = i / 10;
-          const x = hazard.x + t * hazard.w;
-          const y = hazard.y + hazard.h / 2 + Math.sin(t * 7 + ticks * 0.15 + hazard.seed * 6) * 5;
-          if (i === 0) ctx!.moveTo(x, y);
-          else ctx!.lineTo(x, y);
-        }
-        ctx!.stroke();
-        ctx!.globalAlpha = 0.28;
-        ctx!.lineWidth = 6;
-        ctx!.stroke();
-        ctx!.restore();
-        return;
-      }
-
-      // Debris: an irregular rock, its silhouette fixed by its seed.
+      // An irregular rock, its silhouette fixed by its seed.
       ctx!.save();
       ctx!.translate(hazard.x + hazard.w / 2, hazard.y + hazard.h / 2);
       ctx!.fillStyle = COLOUR.hazard;
@@ -508,16 +461,14 @@ export function DriftRun() {
         ctx!.fillStyle = COLOUR.text;
         ctx!.font = "600 15px ui-monospace, monospace";
         ctx!.fillText(
-          phaseNow === RunPhase.Lost ? "SIGNAL LOST" : "DRIFT RUN",
+          phaseNow === RunPhase.Lost ? "SIGNAL LOST" : "TRAILBLAZING ROVERS",
           VIEW_W / 2,
           VIEW_H / 2 - 8,
         );
         ctx!.fillStyle = COLOUR.dim;
         ctx!.font = "500 11px ui-monospace, monospace";
         ctx!.fillText(
-          phaseNow === RunPhase.Lost
-            ? "space to relaunch, down to duck"
-            : "space or click to launch, down to duck",
+          phaseNow === RunPhase.Lost ? "space to relaunch" : "space or click to launch",
           VIEW_W / 2,
           VIEW_H / 2 + 12,
         );
@@ -528,7 +479,6 @@ export function DriftRun() {
       const dt = Math.min((now - last) / 1000, 1 / 30);
       last = now;
       frameSeconds = dt;
-      ticks += 1;
 
       if (!bestPublished) {
         bestPublished = true;
@@ -540,7 +490,7 @@ export function DriftRun() {
         distance += speed * dt;
         groundScroll += speed * dt;
 
-        roverV += GRAVITY * (ducking && !grounded ? DUCK_GRAVITY_BOOST : 1) * dt;
+        roverV += GRAVITY * dt;
         roverY += roverV * dt;
 
         if (roverY >= GROUND_Y - ROVER_H) {
@@ -584,14 +534,6 @@ export function DriftRun() {
         event.preventDefault();
         jump();
       }
-      if (event.code === "ArrowDown" || event.code === "KeyS") {
-        event.preventDefault();
-        ducking = true;
-      }
-    }
-
-    function onKeyUp(event: KeyboardEvent) {
-      if (event.code === "ArrowDown" || event.code === "KeyS") ducking = false;
     }
 
     function onPointerDown(event: PointerEvent) {
@@ -600,13 +542,11 @@ export function DriftRun() {
     }
 
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
     element.addEventListener("pointerdown", onPointerDown);
 
     return () => {
       cancelAnimationFrame(loop);
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
       element.removeEventListener("pointerdown", onPointerDown);
     };
   }, []);
@@ -618,7 +558,7 @@ export function DriftRun() {
         width={VIEW_W}
         height={VIEW_H}
         className="block w-full rounded-[6px] border border-[var(--panel-rule)] bg-[#05040a]"
-        aria-label="Drift Run, a small endless runner across Mars. Space to jump, down arrow to duck."
+        aria-label="Trailblazing Rovers, a small endless runner across Mars. Space to jump."
         role="img"
         {...interactiveCursorProps}
       />

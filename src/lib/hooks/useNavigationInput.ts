@@ -27,7 +27,9 @@ const FAST_DELTA = 90;
 
 /** Elements that should keep their native pointer behaviour. */
 function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
+  // `Element`, not `HTMLElement`: a press on an icon button often lands on its
+  // inline SVG, and SVGElement does not extend HTMLElement.
+  if (!(target instanceof Element)) return false;
   return Boolean(
     target.closest(
       "input, textarea, select, button, a, [data-native-scroll], [data-panel-drag], [data-modal]",
@@ -46,7 +48,7 @@ enum WheelScope {
 }
 
 function wheelScopeOf(target: EventTarget | null): WheelScope {
-  if (!(target instanceof HTMLElement)) return WheelScope.Map;
+  if (!(target instanceof Element)) return WheelScope.Map;
   if (target.closest("[data-modal]")) return WheelScope.Blocked;
   if (target.closest("[data-native-scroll]")) return WheelScope.Native;
   return WheelScope.Map;

@@ -13,7 +13,6 @@
 import { useEffect, type RefObject } from "react";
 
 import { readAnchor, subscribeAnchors } from "@/lib/state/anchors";
-import type { StarId } from "@/lib/graph/types";
 import { clamp } from "@/lib/three/math";
 
 export interface AnchorOptions {
@@ -39,7 +38,7 @@ export interface AnchorOptions {
 
 export function useAnchoredElement(
   ref: RefObject<HTMLElement | null>,
-  starId: StarId | null,
+  starId: string | null,
   options: AnchorOptions = {},
 ): void {
   const {

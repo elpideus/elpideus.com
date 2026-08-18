@@ -6,7 +6,7 @@
  * Falling off the map should feel like falling into something rather than
  * hitting an error page, so the whole viewport is a scene with Gargantua in
  * it, built the same way the map is: a canvas underneath, the readable things
- * laid over it. Three deliberate clicks into the shadow open Drift Run, which
+ * laid over it. Three deliberate clicks into the shadow open Trailblazing Rovers, which
  * is the only reward for poking at a black hole that anyone has ever received.
  */
 
@@ -17,6 +17,7 @@ import { CloseIcon } from "@/components/ui/Icon";
 import { Cursor } from "@/components/overlay/Cursor";
 import { interactiveCursorProps } from "@/components/ui/primitives";
 import { LostScene } from "./LostScene";
+import { LostVeil } from "./LostVeil";
 import { DriftRun } from "./DriftRun";
 import { useWindowDrag, type DragOffset } from "@/lib/hooks/useWindowDrag";
 import { SITE } from "@/lib/content/links";
@@ -36,8 +37,10 @@ export function LostView() {
   const [clicks, setClicks] = useState(0);
   const [gameOpen, setGameOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [ready, setReady] = useState(false);
 
   const frame = useRef<HTMLDivElement>(null);
+  const onReady = useCallback(() => setReady(true), []);
 
   const applyOffset = useCallback((next: DragOffset) => {
     const element = frame.current;
@@ -70,7 +73,7 @@ export function LostView() {
 
   return (
     <main className="relative h-dvh w-screen overflow-hidden bg-void">
-      <LostScene onHoleClick={onHoleClick} />
+      <LostScene onHoleClick={onHoleClick} onReady={onReady} />
 
       {/* Copy sits clear of the shadow so the hole stays clickable. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-3 px-6 pt-[9vh] text-center">
@@ -114,7 +117,7 @@ export function LostView() {
           ref={frame}
           data-modal
           role="dialog"
-          aria-label="Drift Run"
+          aria-label="Trailblazing Rovers"
           className="u-glass u-ticks absolute left-1/2 top-1/2 w-[min(860px,90vw)] -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-panel)]"
           style={{ animation: "panel-in 320ms var(--ease-out-expo) both" }}
         >
@@ -139,7 +142,7 @@ export function LostView() {
               <div className="min-w-0">
                 <p className="u-eyebrow">Salvage</p>
                 <h2 className="truncate font-display text-[14px] tracking-tight text-frost">
-                  <span className="text-halo">Drift Run</span>
+                  <span className="text-halo">Trailblazing Rovers</span>
                   <span className="mx-2 text-dim">/</span>
                   debris field
                 </h2>
@@ -149,7 +152,7 @@ export function LostView() {
             <button
               type="button"
               onClick={closeGame}
-              aria-label="Close Drift Run"
+              aria-label="Close Trailblazing Rovers"
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-halo/25 text-mist transition-colors hover:border-halo/60 hover:text-halo"
               {...interactiveCursorProps}
             >
@@ -159,9 +162,14 @@ export function LostView() {
 
           <div className="px-4 py-3">
             <DriftRun />
+            <p className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.16em] text-dim">
+              A tribute to the little metal heroes who paved the way: Spirit, Opportunity, and Sojourner.
+            </p>
           </div>
         </div>
       ) : null}
+
+      <LostVeil ready={ready} />
 
       {/* The same reticle the map uses, so the two pages feel like one site. */}
       <Cursor />
