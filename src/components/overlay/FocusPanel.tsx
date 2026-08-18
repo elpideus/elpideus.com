@@ -139,7 +139,7 @@ export function FocusPanel() {
             onDoubleClick={resetPosition}
             style={{ cursor: dragging ? "grabbing" : "grab" }}
             title="Drag to move the panel, double click to send it back to its star"
-            className="flex items-baseline justify-between gap-3 border-b border-signal/12 px-5 py-3 select-none"
+            className="flex items-baseline justify-between gap-3 border-b border-[var(--panel-rule)] px-5 py-3 select-none"
           >
             <div className="flex min-w-0 items-baseline gap-2.5">
               {/* Grip: the affordance that says this edge is draggable. */}

@@ -11,6 +11,7 @@
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 
+import { Asteroids } from "./Asteroids";
 import { CameraRig } from "./CameraRig";
 import { Constellation } from "./Constellation";
 import { Effects } from "./Effects";
@@ -47,6 +48,7 @@ export function StarMap() {
         <Suspense fallback={null}>
           <Nebula intensity={profile.reducedMotion ? 0.5 : 0.7} />
           <Starfield />
+          <Asteroids tier={profile.tier} />
           <Constellation />
           <StarNodes />
         </Suspense>

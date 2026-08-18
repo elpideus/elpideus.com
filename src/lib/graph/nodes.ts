@@ -271,3 +271,22 @@ export const LINKS: readonly StarLink[] = [
 export function journeyIndexOf(id: StarId): number {
   return JOURNEY.indexOf(id);
 }
+
+/**
+ * URL fragment for a star.
+ *
+ * Sections use their own name (`#about`), satellites use the slug of the thing
+ * they hold (`#televault`), which keeps every fragment readable and unique
+ * without a nested syntax.
+ */
+export function starSlug(id: StarId): string {
+  const star = getStar(id);
+  return star.ref ?? star.section.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+const STAR_BY_SLUG = new Map<string, StarId>(STARS.map((star) => [starSlug(star.id), star.id]));
+
+/** The star a fragment points at, if it points at one. */
+export function starFromSlug(slug: string): StarId | null {
+  return STAR_BY_SLUG.get(slug.toLowerCase()) ?? null;
+}

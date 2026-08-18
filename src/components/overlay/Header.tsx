@@ -4,6 +4,7 @@
 
 import { ActionLink, ActionTone, interactiveCursorProps } from "@/components/ui/primitives";
 import { DownloadIcon, SocialGlyph } from "@/components/ui/Icon";
+import { Mark } from "@/components/ui/Mark";
 import { LinkIcon, SOCIALS } from "@/lib/content/links";
 import { JOURNEY } from "@/lib/graph/nodes";
 import { TravelIntent, useJourney } from "@/lib/state/journey";
@@ -21,10 +22,11 @@ export function Header() {
       <button
         type="button"
         onClick={() => goToIndex(0, TravelIntent.Pointer, 0.2)}
-        className="pointer-events-auto flex items-baseline gap-2 text-left"
+        className="pointer-events-auto flex items-baseline gap-2.5 text-left"
         aria-label="Return to Sirius, the origin star"
         {...interactiveCursorProps}
       >
+        <Mark size={13} className="relative top-[3px] shrink-0 text-frost" />
         <span className="font-display text-[15px] tracking-[0.06em] text-frost">elpideus</span>
         <span
           className="h-1 w-1 rounded-full bg-signal transition-opacity duration-500"

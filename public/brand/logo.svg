@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1359.75 1744.69">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fff;
+      }
+
+      .cls-2 {
+        stroke-linecap: round;
+        stroke-width: 190px;
+      }
+
+      .cls-2, .cls-3 {
+        fill: none;
+        stroke: #fff;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-3 {
+        stroke-width: 191px;
+      }
+    </style>
+  </defs>
+  <line id="BottomLine" class="cls-2" x1="679.88" y1="1528.43" x2="679.88" y2="1649.69"/>
+  <line id="TopLine" class="cls-2" x1="679.88" y1="95" x2="679.88" y2="236.39"/>
+  <path id="PlayButton" class="cls-1" d="M728.3,1045.43l130.54-238.1c19.76-36.04-6.32-80.09-47.42-80.09h-261.09c-41.1,0-67.19,44.04-47.42,80.09l130.54,238.1c20.53,37.44,74.32,37.44,94.85,0Z"/>
+  <circle id="Circle" class="cls-3" cx="679.88" cy="869.37" r="584.38"/>
+</svg>

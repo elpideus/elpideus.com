@@ -20,12 +20,11 @@
   --color-beacon: #fff1d4;
   --color-verdant: #8fe6d8;
   --color-warning: #ff8f6a;
+  --color-halo: #b39cff;
 
   --font-display: var(--font-space-grotesk), "Segoe UI", system-ui, sans-serif;
   --font-body: var(--font-inter), "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "Cascadia Code", monospace;
-
-  --radius-panel: 4px;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
@@ -82,20 +81,39 @@ body[data-custom-cursor="on"] * {
   border-radius: 999px;
 }
 
+/*
+ * Panel surface tokens.
+ *
+ * Every piece of chrome reads these, so retuning the windows happens here
+ * rather than in each component. The look is deliberately quiet: near black
+ * glass with a violet rim, so the sky stays the loudest thing on the screen.
+ */
+:root {
+  --radius-panel: 10px;
+  --panel-surface: linear-gradient(
+    160deg,
+    color-mix(in srgb, #14101f 78%, transparent),
+    color-mix(in srgb, #05040a 88%, transparent)
+  );
+  --panel-texture: none;
+  --panel-blur: blur(18px) saturate(115%);
+  --panel-border: color-mix(in srgb, var(--color-halo) 22%, transparent);
+  --panel-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.6),
+    0 26px 64px -32px rgb(0 0 0 / 0.9),
+    inset 0 1px 0 color-mix(in srgb, #d9ccff 10%, transparent);
+  --panel-tick: color-mix(in srgb, var(--color-halo) 55%, transparent);
+  --panel-tick-size: 10px;
+  --panel-rule: color-mix(in srgb, var(--color-halo) 16%, transparent);
+}
+
 @layer utilities {
   /* Frosted instrument panel: the base surface for every piece of chrome. */
   .u-glass {
-    background: linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--color-hull) 72%, transparent),
-      color-mix(in srgb, var(--color-abyss) 82%, transparent)
-    );
-    backdrop-filter: blur(14px) saturate(130%);
-    border: 1px solid color-mix(in srgb, var(--color-signal) 16%, transparent);
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-void) 60%, transparent),
-      0 24px 60px -30px rgb(0 0 0 / 0.9),
-      inset 0 1px 0 color-mix(in srgb, var(--color-frost) 6%, transparent);
+    background-image: var(--panel-texture), var(--panel-surface);
+    backdrop-filter: var(--panel-blur);
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--panel-shadow);
   }
 
   /* Corner ticks that give panels an instrument, heads up display feel. */
@@ -107,9 +125,9 @@ body[data-custom-cursor="on"] * {
   .u-ticks::after {
     content: "";
     position: absolute;
-    width: 10px;
-    height: 10px;
-    border: 1px solid color-mix(in srgb, var(--color-signal) 55%, transparent);
+    width: var(--panel-tick-size);
+    height: var(--panel-tick-size);
+    border: 1px solid var(--panel-tick);
     pointer-events: none;
   }
 

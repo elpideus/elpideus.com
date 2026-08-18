@@ -89,7 +89,7 @@ export function Lightbox({ media, onClose }: { media: LightboxMedia; onClose: ()
           onPointerDown={startDrag}
           style={{ cursor: dragging ? "grabbing" : "grab" }}
           title="Drag to move the viewer"
-          className="flex select-none items-center justify-between gap-3 border-b border-signal/12 px-4 py-2.5"
+          className="flex select-none items-center justify-between gap-3 border-b border-[var(--panel-rule)] px-4 py-2.5"
         >
           <div className="flex min-w-0 items-center gap-2.5">
             <span aria-hidden="true" className="grid shrink-0 grid-cols-2 gap-[3px] opacity-45">

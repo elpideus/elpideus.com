@@ -1,17 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <rect width="32" height="32" rx="7" fill="#03040a"/>
-  <g stroke="#7fd7ff" stroke-width="1" opacity="0.55">
-    <path d="M16 16 L7 9"/>
-    <path d="M16 16 L25 11"/>
-    <path d="M16 16 L9 24"/>
-    <path d="M16 16 L24 23"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1600" width="1600" height="1600">
+  <rect width="1600" height="1600" rx="350" fill="#05040a"/>
+  <g transform="translate(120, -72) scale(0.94)">
+    <g fill="none" stroke="#e9f1ff" stroke-miterlimit="10">
+      <line x1="679.88" y1="1528.43" x2="679.88" y2="1649.69" stroke-width="190" stroke-linecap="round"/>
+      <line x1="679.88" y1="95" x2="679.88" y2="236.39" stroke-width="190" stroke-linecap="round"/>
+      <circle cx="679.88" cy="869.37" r="584.38" stroke-width="191"/>
+    </g>
+    <path fill="#b39cff" d="M728.3,1045.43l130.54-238.1c19.76-36.04-6.32-80.09-47.42-80.09h-261.09c-41.1,0-67.19,44.04-47.42,80.09l130.54,238.1c20.53,37.44,74.32,37.44,94.85,0Z"/>
   </g>
-  <g fill="#7fd7ff" opacity="0.85">
-    <circle cx="7" cy="9" r="1.5"/>
-    <circle cx="25" cy="11" r="1.2"/>
-    <circle cx="9" cy="24" r="1.2"/>
-    <circle cx="24" cy="23" r="1.5"/>
-  </g>
-  <circle cx="16" cy="16" r="3.6" fill="#e9f1ff"/>
-  <circle cx="16" cy="16" r="6.4" fill="#7fd7ff" opacity="0.25"/>
 </svg>
