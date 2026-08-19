@@ -195,9 +195,15 @@ export function FocusPanel() {
           </header>
 
           <div
-            className="max-h-[58vh] px-5 py-4"
-            style={{ overflowY: ready && entered ? "auto" : "hidden" }}
-            data-native-scroll={ready && entered ? true : undefined}
+            className="max-h-[58vh] overflow-y-auto px-5 py-4"
+            style={{ scrollbarGutter: "stable" }}
+            onWheel={(event) => {
+              if (!(ready && entered)) event.preventDefault();
+            }}
+            onTouchMove={(event) => {
+              if (!(ready && entered)) event.preventDefault();
+            }}
+            data-native-scroll
           >
             {renderPanel(star.panel, star.ref)}
           </div>
