@@ -77,3 +77,16 @@ other layer, the image viewer included.
 Every image and video is presented as a projection: cyan tinted, scanlined, framed by brackets. The
 YouTube frame only creates its iframe after the visitor asks for it, so the page never pays for a
 third party player it may not need.
+
+`HologramVideo` wears its own controls on top of the IFrame Player API (`useYouTubePlayer`): scrub
+bar with a buffered track, volume that survives reloads, captions, playback speed, quality capped at
+1080p while fullscreen, and the keyboard set visitors expect (space or `k`, arrows, `j` and `l`, `m`,
+`c`, `f`).
+
+The embed paints its own chrome (centre glyph, share, watch later, logo link) in every moment it is
+not actively playing, and no player parameter turns that off. Two rules keep it out of sight. The
+iframe never receives pointer events, so hover chrome cannot be summoned, and a veil covers the
+projection whenever the player is not playing: before the first frame, while paused, while scrubbing
+and for a beat after a seek. Buffering inherits the previous veil state, so a stall mid playback does
+not drop a curtain. Playback position is sampled on a 250ms timer rather than per frame, so nothing
+about the player pushes React state every frame.

@@ -3,7 +3,7 @@
 /** Rigel: the video side of the work. */
 
 import { ActionLink, ActionTone, Eyebrow, Hairline, Prose, Tag } from "@/components/ui/primitives";
-import { HologramVideo } from "@/components/overlay/Hologram";
+import { HologramVideo } from "@/components/overlay/HologramVideo";
 import { CHANNEL } from "@/lib/content/studio";
 import { formatCount, useChannelStats } from "@/lib/hooks/useChannelStats";
 

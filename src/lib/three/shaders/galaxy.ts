@@ -1,13 +1,17 @@
-import { GLSL_NOISE } from "./noise";
+import { GLSL_GALAXY_SHAPE } from "./galaxyShape";
 
 /**
  * Distant galaxy billboard.
  *
- * One plane per galaxy, always faced to the camera by the component (not by
- * this shader), so the vertex stage is a plain projection. The fragment stage
- * draws either a spiral disc or an elliptical bulge from the same noise used
- * by the nebula, so a galaxy reads as a soft, slightly clumpy smudge rather
- * than a flat gradient.
+ * One plane per galaxy, turned to face the camera by the component rather than
+ * by this shader, so the vertex stage is a plain projection. All of the shape
+ * lives in `gxGalaxy`, which the 404 also calls, so a spiral looks like the
+ * same spiral on either page.
+ *
+ * The plane is deliberately larger than the galaxy: `GX_EXTENT` radii of room
+ * on every side, so the light profile has faded out well before it reaches the
+ * border. A quad cut to the galaxy's own radius clips a profile that is still
+ * bright there, and the result reads as a glowing square.
  */
 export const GALAXY_VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -23,39 +27,59 @@ export const GALAXY_FRAGMENT = /* glsl */ `
 
   uniform vec3 uColorCore;
   uniform vec3 uColorArm;
-  uniform float uSeed;
-  uniform float uArmStrength;
   uniform float uSquash;
-  uniform float uCoreSize;
+  uniform float uRoll;
+  uniform vec4 uForm;
+  uniform vec4 uDetail;
+  uniform vec4 uExtra;
   uniform float uOpacity;
 
   varying vec2 vUv;
 
-  ${GLSL_NOISE}
+  ${GLSL_GALAXY_SHAPE}
 
   void main() {
-    vec2 centered = vUv * 2.0 - 1.0;
-    // Flatten one axis so the disc reads as inclined rather than face on.
-    vec2 disc = vec2(centered.x, centered.y / uSquash);
-    float r = length(disc);
-    float angle = atan(disc.y, disc.x);
+    vec2 local = (vUv * 2.0 - 1.0) * GX_EXTENT;
 
-    float core = exp(-r * r * (5.0 / max(uCoreSize, 0.05)));
+    float alpha;
+    vec3 emission = gxGalaxy(
+      local, uSquash, uRoll, uForm, uDetail, uExtra, uColorCore, uColorArm, alpha
+    );
 
-    float wind = log(r + 0.08) * 2.4;
-    float armPhase = sin(angle * 2.0 - wind + uSeed);
-    float clumps = fbm(vec3(disc * 3.0 + uSeed, uSeed * 0.5), 3);
-    float arms = smoothstep(0.15, 0.9, armPhase * 0.5 + 0.5) * clumps;
-    arms *= smoothstep(1.0, 0.15, r);
+    /*
+     * Additive blending multiplies by alpha on the way in, so the brightness
+     * is carried once, in the colour, and alpha stays at one. Carrying it in
+     * both is what dims a faint galaxy twice over until it disappears.
+     */
+    emission *= uOpacity;
 
-    float edge = smoothstep(1.0, 0.35, r);
-    float glow = core + arms * uArmStrength * edge;
-    glow *= edge;
+    /*
+     * Soft knee, because nothing here may clip. These materials opt out of
+     * tone mapping, so anything over one is cut flat, and a cut core is a
+     * plateau with a hard rim exactly where the clipping stops; the bloom pass
+     * then finds that rim and draws it as an outline. Rolling the top off
+     * leaves the core the brightest thing on screen without ever reaching the
+     * ceiling.
+     */
+    emission = emission / (1.0 + emission * 0.8);
 
-    vec3 color = mix(uColorArm, uColorCore, core);
-    float alpha = clamp(glow, 0.0, 1.0) * uOpacity;
+    float level = max(emission.r, max(emission.g, emission.b));
+    if (level < 0.0006) discard;
 
-    if (alpha < 0.004) discard;
-    gl_FragColor = vec4(color * glow, alpha);
+    /*
+     * Dither. The outer envelope is a ramp from a few percent of full
+     * brightness down to nothing over a hundred or more pixels, which in eight
+     * bit output is a dozen steps: those steps are the contour rings that read
+     * as a hard edge however smooth the maths underneath is. Noise below one
+     * output level breaks them into grain the eye reads as nothing at all.
+     *
+     * It is faded out with the galaxy rather than applied flat, so the far
+     * corners of the quad stay exactly empty instead of picking up a faint
+     * rectangle of noise.
+     */
+    float dither = (gxHash(vec3(gl_FragCoord.xy, 1.0)) - 0.5) * (1.3 / 255.0);
+    emission += dither * min(level * 300.0, 1.0);
+
+    gl_FragColor = vec4(max(emission, 0.0), 1.0);
   }
 `;

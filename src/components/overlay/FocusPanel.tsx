@@ -31,6 +31,17 @@ import { ToolkitSection } from "@/components/sections/Toolkit";
 import { TrajectorySection } from "@/components/sections/Trajectory";
 
 /** Horizontal gap between a star and its panel, in CSS pixels. */
+/** Keys that scroll a box, blocked while the panel is still flying in. */
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
+
 const PANEL_OFFSET_X = 96;
 const PANEL_OFFSET_Y = -140;
 
@@ -66,11 +77,14 @@ export function FocusPanel() {
   const ready = useJourney((state) => state.ready);
   const railHovered = useJourney((state) => state.railHovered);
   const panel = useRef<HTMLElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const star = getStar(focus);
 
   const [moved, setMoved] = useState(panelWasMoved);
   const [dragging, setDragging] = useState(false);
-  const [entered, setEntered] = useState(false);
+  // Which focus the entrance animation has finished for; anything else is mid flight.
+  const [enteredFocus, setEnteredFocus] = useState<string | null>(null);
+  const entered = enteredFocus === focus;
 
   useAnchoredElement(panel, focus, {
     offsetX: PANEL_OFFSET_X,
@@ -98,9 +112,34 @@ export function FocusPanel() {
     },
   });
 
+  /**
+   * The panel body scrolls, but not while it is still flying in: a wheel during
+   * the entrance reads as a scroll of the page underneath, not of a window that
+   * has not landed yet. React attaches wheel and touchmove passively at the
+   * root, so the block has to be a native non passive listener on the box
+   * itself. Keys that scroll are stopped the same way.
+   */
   useEffect(() => {
-    setEntered(false);
-  }, [focus]);
+    const node = scroller.current;
+    if (!node || (ready && entered)) return;
+
+    node.scrollTop = 0;
+
+    const block = (event: Event) => event.preventDefault();
+    const blockKey = (event: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(event.key)) event.preventDefault();
+    };
+
+    node.addEventListener("wheel", block, { passive: false });
+    node.addEventListener("touchmove", block, { passive: false });
+    node.addEventListener("keydown", blockKey);
+
+    return () => {
+      node.removeEventListener("wheel", block);
+      node.removeEventListener("touchmove", block);
+      node.removeEventListener("keydown", blockKey);
+    };
+  }, [ready, entered, focus]);
 
   const resetPosition = useCallback(() => {
     resetPanelOffset();
@@ -121,7 +160,10 @@ export function FocusPanel() {
       <div
         key={focus}
         className="relative"
-        onAnimationEnd={() => setEntered(true)}
+        onAnimationEnd={(event) => {
+          // Child animations bubble; only the panel's own entrance counts.
+          if (event.target === event.currentTarget) setEnteredFocus(focus);
+        }}
         style={{
           animation: ready && !entered ? "panel-in 700ms var(--ease-out-expo) both" : undefined,
           opacity: !ready ? 0 : railHovered ? 0 : 1,
@@ -195,14 +237,9 @@ export function FocusPanel() {
           </header>
 
           <div
+            ref={scroller}
             className="max-h-[58vh] overflow-y-auto px-5 py-4"
             style={{ scrollbarGutter: "stable" }}
-            onWheel={(event) => {
-              if (!(ready && entered)) event.preventDefault();
-            }}
-            onTouchMove={(event) => {
-              if (!(ready && entered)) event.preventDefault();
-            }}
             data-native-scroll
           >
             {renderPanel(star.panel, star.ref)}

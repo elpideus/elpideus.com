@@ -5,10 +5,18 @@
  *
  * Each one is a single billboarded plane, world fixed at a real distance so
  * flying between stars gives them the faint parallax something that far away
- * should have, unlike the camera locked starfield. A handful of spiral and
- * elliptical variants, hashed rather than random so the field is identical
- * every visit, keeps the sky from feeling like an empty void past the nearest
- * stars.
+ * should have, unlike the camera locked starfield. Shape, size and colour come
+ * from `galaxyField`, which the 404 shares, so the two skies are populated
+ * from one description of what galaxies are.
+ *
+ * Two details that matter more than they look:
+ *
+ * - The quad is turned with `lookAt`, not by copying the camera's quaternion.
+ *   Copying carries the camera's roll into the galaxy, so banking the camera
+ *   spins every galaxy in place; `lookAt` leaves them pinned to the sky and
+ *   lets the shader own the position angle.
+ * - World size is angular size times distance, so how big a galaxy looks is a
+ *   property of the galaxy and how far away it is only sets its parallax.
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -17,105 +25,81 @@ import * as THREE from "three";
 
 import { EffectTier } from "./Effects";
 import { GALAXY_FRAGMENT, GALAXY_VERTEX } from "@/lib/three/shaders/galaxy";
-import { hashNoise } from "@/lib/three/math";
+import {
+  buildGalaxyField,
+  galaxyDetailVector,
+  galaxyDirection,
+  galaxyDistance,
+  galaxyExtraVector,
+  galaxyFormVector,
+  type GalaxyForm,
+} from "@/lib/three/galaxyField";
 
 /** Galaxies per tier. Purely decorative background, thinned first. */
 const COUNT: Record<EffectTier, number> = {
-  [EffectTier.Rich]: 34,
-  [EffectTier.Lean]: 16,
+  [EffectTier.Rich]: 38,
+  [EffectTier.Lean]: 18,
   [EffectTier.Off]: 0,
 };
 
-/** Colour pairs: core tone, arm/halo tone. Biased warm core, cool or warm arms. */
-const PALETTES: readonly [string, string][] = [
-  ["#fff3e0", "#8fb4ff"],
-  ["#ffe9c9", "#ff9f7a"],
-  ["#f2e9ff", "#b78bff"],
-  ["#e8f0ff", "#6fd8d0"],
-  ["#fff0e6", "#ffd28a"],
-  ["#eae4ff", "#7a90ff"],
-];
+/**
+ * Angular half width on the sky, in radians: from a smudge a few pixels across
+ * to something that fills a good part of a 52 degree frame.
+ */
+const ANGULAR_RANGE: readonly [number, number] = [0.012, 0.22];
 
-interface GalaxyConfig {
-  position: THREE.Vector3;
-  size: number;
-  roll: number;
-  squash: number;
-  armStrength: number;
-  seed: number;
-  opacity: number;
-  colorCore: THREE.Color;
-  colorArm: THREE.Color;
+/**
+ * Room left around a galaxy on its quad, matching `GX_EXTENT` in the shader.
+ * The shape fades to nothing before the border, so the border never shows.
+ */
+const QUAD_EXTENT = 1.5;
+
+interface PlacedGalaxy {
+  readonly form: GalaxyForm;
+  readonly position: THREE.Vector3;
+  /** Full width of the quad in world units. */
+  readonly size: number;
 }
 
-function buildGalaxies(count: number, radiusRange: readonly [number, number]): GalaxyConfig[] {
-  return Array.from({ length: count }, (_, index) => {
-    const seed = index * 17 + 5;
-    const [minR, maxR] = radiusRange;
-    const radius = minR + hashNoise(seed) * (maxR - minR);
-
-    // Even coverage of the sphere, not just the equator.
-    const theta = hashNoise(seed + 1) * Math.PI * 2;
-    const phi = Math.acos(hashNoise(seed + 2) * 2 - 1);
-
-    const position = new THREE.Vector3(
-      radius * Math.sin(phi) * Math.cos(theta),
-      radius * Math.cos(phi) * 0.6,
-      radius * Math.sin(phi) * Math.sin(theta),
-    );
-
-    /*
-     * Skewed towards small so a field of them reads as depth rather than a
-     * wall of identical smudges: most are faint background specks, and the
-     * cubed roll rarely lands on the handful that read as big and close.
-     */
-    const sizeRoll = Math.pow(hashNoise(seed + 3), 3);
-    const size = (10 + sizeRoll * 130) * (radius / minR);
-
-    const palette = PALETTES[Math.floor(hashNoise(seed + 4) * PALETTES.length) % PALETTES.length];
-    const isElliptical = hashNoise(seed + 5) < 0.35;
-
+function placeGalaxies(count: number, radiusRange: readonly [number, number]): PlacedGalaxy[] {
+  return buildGalaxyField(count, ANGULAR_RANGE).map((form, index) => {
+    const distance = galaxyDistance(index, radiusRange);
     return {
-      position,
-      size,
-      roll: hashNoise(seed + 6) * Math.PI * 2,
-      squash: isElliptical ? 0.75 + hashNoise(seed + 7) * 0.25 : 0.28 + hashNoise(seed + 7) * 0.4,
-      armStrength: isElliptical ? 0.08 : 0.55 + hashNoise(seed + 8) * 0.45,
-      seed: hashNoise(seed + 9) * 40,
-      opacity: 0.4 + hashNoise(seed + 10) * 0.4,
-      colorCore: new THREE.Color(palette[0]),
-      colorArm: new THREE.Color(palette[1]),
+      form,
+      /* Flattened a little vertically: the map is a wide field, and galaxies
+         directly overhead or underfoot are never looked at. */
+      position: galaxyDirection(index, 0.6).multiplyScalar(distance),
+      size: form.angularRadius * distance * 2 * QUAD_EXTENT,
     };
   });
 }
 
-function Galaxy({ config }: { config: GalaxyConfig }) {
+function Galaxy({ placed }: { placed: PlacedGalaxy }) {
   const mesh = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
+  const { form } = placed;
 
   const uniforms = useMemo(
     () => ({
-      uColorCore: { value: config.colorCore },
-      uColorArm: { value: config.colorArm },
-      uSeed: { value: config.seed },
-      uArmStrength: { value: config.armStrength },
-      uSquash: { value: config.squash },
-      uCoreSize: { value: 0.55 },
-      uOpacity: { value: config.opacity },
+      uColorCore: { value: form.core },
+      uColorArm: { value: form.arm },
+      uSquash: { value: form.squash },
+      uRoll: { value: form.roll },
+      uForm: { value: galaxyFormVector(form) },
+      uDetail: { value: galaxyDetailVector(form) },
+      uExtra: { value: galaxyExtraVector(form) },
+      uOpacity: { value: form.brightness },
     }),
-    [config],
+    [form],
   );
 
   useFrame(() => {
-    const object = mesh.current;
-    if (!object) return;
-    object.quaternion.copy(camera.quaternion);
-    object.rotateZ(config.roll);
+    mesh.current?.lookAt(camera.position);
   });
 
   return (
-    <mesh ref={mesh} position={config.position} frustumCulled={false} renderOrder={-0.5}>
-      <planeGeometry args={[config.size, config.size]} />
+    <mesh ref={mesh} position={placed.position} frustumCulled={false} renderOrder={-0.5}>
+      <planeGeometry args={[placed.size, placed.size]} />
       <shaderMaterial
         vertexShader={GALAXY_VERTEX}
         fragmentShader={GALAXY_FRAGMENT}
@@ -123,6 +107,7 @@ function Galaxy({ config }: { config: GalaxyConfig }) {
         transparent
         depthWrite={false}
         blending={THREE.AdditiveBlending}
+        toneMapped={false}
       />
     </mesh>
   );
@@ -136,14 +121,20 @@ export function Galaxies({
   radiusRange?: readonly [number, number];
 }) {
   const count = COUNT[tier];
-  const galaxies = useMemo(() => buildGalaxies(count, radiusRange), [count, radiusRange]);
+  const [minRadius, maxRadius] = radiusRange;
+  // Depend on the numbers, not the array: a literal prop is a new array every
+  // render and would reroll the whole field each time.
+  const galaxies = useMemo(
+    () => placeGalaxies(count, [minRadius, maxRadius]),
+    [count, minRadius, maxRadius],
+  );
 
   if (count === 0) return null;
 
   return (
     <group>
-      {galaxies.map((config, index) => (
-        <Galaxy key={index} config={config} />
+      {galaxies.map((placed, index) => (
+        <Galaxy key={index} placed={placed} />
       ))}
     </group>
   );

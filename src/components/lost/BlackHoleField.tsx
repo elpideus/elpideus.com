@@ -18,74 +18,69 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { hashNoise } from "@/lib/three/math";
+import {
+  buildGalaxyField,
+  galaxyDetailVector,
+  galaxyDirection,
+  galaxyExtraVector,
+  galaxyFormVector,
+} from "@/lib/three/galaxyField";
+import { GLSL_GALAXY_SHAPE } from "@/lib/three/shaders/galaxyShape";
 
 /** Must match MAX_GALAXIES in the fragment shader below. */
-const MAX_GALAXIES = 24;
-
-/** Colour pairs: core tone, arm/halo tone. */
-const GALAXY_PALETTES: readonly [string, string][] = [
-  ["#fff3e0", "#8fb4ff"],
-  ["#ffe9c9", "#ff9f7a"],
-  ["#f2e9ff", "#b78bff"],
-  ["#e8f0ff", "#6fd8d0"],
-  ["#fff0e6", "#ffd28a"],
-  ["#eae4ff", "#7a90ff"],
-];
+const MAX_GALAXIES = 22;
 
 /**
- * Fixed, hashed galaxy field for the black hole shader: same seed every
- * visit, spread evenly over the whole sky rather than only around the hole.
+ * Angular half width on the sky, in radians. Wider at the top end than the
+ * map's, because here there is no camera flight to reveal scale: the size
+ * spread has to do that work on its own.
+ */
+const ANGULAR_RANGE: readonly [number, number] = [0.014, 0.26];
+
+/**
+ * The galaxy field, packed into uniform arrays.
+ *
+ * Same population as the map, drawn by the same shape function; only the
+ * plumbing differs, because here a galaxy is read off a lensed ray rather than
+ * rasterised as a quad. Unused slots are zeroed rather than skipped so the
+ * arrays always have their declared length.
  */
 function buildGalaxyUniforms(count: number) {
-  const dir: THREE.Vector3[] = [];
-  const shape: THREE.Vector4[] = [];
+  const forms = buildGalaxyField(Math.min(count, MAX_GALAXIES), ANGULAR_RANGE);
+
+  const geometry: THREE.Vector4[] = [];
+  const orientation: THREE.Vector4[] = [];
+  const form: THREE.Vector4[] = [];
+  const detail: THREE.Vector4[] = [];
+  const extra: THREE.Vector4[] = [];
   const colorA: THREE.Vector4[] = [];
   const colorB: THREE.Vector4[] = [];
 
   for (let i = 0; i < MAX_GALAXIES; i += 1) {
-    if (i >= count) {
-      dir.push(new THREE.Vector3(0, 1, 0));
-      shape.push(new THREE.Vector4(0, 1, 0, 0));
-      colorA.push(new THREE.Vector4(0, 0, 0, 0));
-      colorB.push(new THREE.Vector4(0, 0, 0, 0));
+    const galaxy = forms[i];
+
+    if (!galaxy) {
+      geometry.push(new THREE.Vector4(0, 1, 0, 0));
+      orientation.push(new THREE.Vector4(1, 0, 0, 0));
+      form.push(new THREE.Vector4(0, 2, 2, 0.1));
+      detail.push(new THREE.Vector4());
+      extra.push(new THREE.Vector4());
+      colorA.push(new THREE.Vector4());
+      colorB.push(new THREE.Vector4());
       continue;
     }
 
-    const seed = i * 23 + 7;
-    const theta = hashNoise(seed) * Math.PI * 2;
-    const phi = Math.acos(hashNoise(seed + 1) * 2 - 1);
-    dir.push(
-      new THREE.Vector3(
-        Math.sin(phi) * Math.cos(theta),
-        Math.cos(phi),
-        Math.sin(phi) * Math.sin(theta),
-      ),
-    );
-
-    // Skewed towards small: a few galaxies read big and close, most are faint specks.
-    const sizeRoll = Math.pow(hashNoise(seed + 2), 3);
-    const angularRadius = 0.02 + sizeRoll * 0.17;
-    const isElliptical = hashNoise(seed + 3) < 0.35;
-    const squash = isElliptical
-      ? 0.55 + hashNoise(seed + 4) * 0.35
-      : 0.32 + hashNoise(seed + 4) * 0.35;
-    const roll = hashNoise(seed + 5) * Math.PI * 2;
-    const armStrength = isElliptical ? 0.1 : 0.55 + hashNoise(seed + 6) * 0.45;
-    shape.push(new THREE.Vector4(angularRadius, squash, roll, armStrength));
-
-    const palette =
-      GALAXY_PALETTES[Math.floor(hashNoise(seed + 7) * GALAXY_PALETTES.length) % GALAXY_PALETTES.length];
-    const core = new THREE.Color(palette[0]);
-    const arm = new THREE.Color(palette[1]);
-    const noiseSeed = hashNoise(seed + 8) * 40;
-    const opacity = 0.4 + hashNoise(seed + 9) * 0.4;
-
-    colorA.push(new THREE.Vector4(core.r, core.g, core.b, noiseSeed));
-    colorB.push(new THREE.Vector4(arm.r, arm.g, arm.b, opacity));
+    const direction = galaxyDirection(i);
+    geometry.push(new THREE.Vector4(direction.x, direction.y, direction.z, galaxy.angularRadius));
+    orientation.push(new THREE.Vector4(galaxy.squash, galaxy.roll, 0, 0));
+    form.push(galaxyFormVector(galaxy));
+    detail.push(galaxyDetailVector(galaxy));
+    extra.push(galaxyExtraVector(galaxy));
+    colorA.push(new THREE.Vector4(galaxy.core.r, galaxy.core.g, galaxy.core.b, galaxy.brightness));
+    colorB.push(new THREE.Vector4(galaxy.arm.r, galaxy.arm.g, galaxy.arm.b, 0));
   }
 
-  return { dir, shape, colorA, colorB };
+  return { geometry, orientation, form, detail, extra, colorA, colorB };
 }
 
 const VERTEX = /* glsl */ `
@@ -113,14 +108,19 @@ const FRAGMENT = /* glsl */ `
    * shape never depends on the cube face grid the point stars share, and it
    * cannot be cut off by a neighbouring cell.
    */
-  #define MAX_GALAXIES 24
+  #define MAX_GALAXIES 22
   uniform int uGalaxyCount;
-  uniform vec3 uGalaxyDir[MAX_GALAXIES];
-  /* x: angular radius, y: squash, z: roll, w: spiral arm strength. */
-  uniform vec4 uGalaxyShape[MAX_GALAXIES];
-  /* rgb: core colour, a: noise seed. */
+  /* xyz: sky direction, w: angular radius. */
+  uniform vec4 uGalaxyGeometry[MAX_GALAXIES];
+  /* x: squash, y: roll. */
+  uniform vec4 uGalaxyOrientation[MAX_GALAXIES];
+  /* Shape function inputs, straight through: see gxGalaxy. */
+  uniform vec4 uGalaxyForm[MAX_GALAXIES];
+  uniform vec4 uGalaxyDetail[MAX_GALAXIES];
+  uniform vec4 uGalaxyExtra[MAX_GALAXIES];
+  /* rgb: core colour, a: brightness. */
   uniform vec4 uGalaxyColorA[MAX_GALAXIES];
-  /* rgb: arm/halo colour, a: opacity. */
+  /* rgb: arm colour. */
   uniform vec4 uGalaxyColorB[MAX_GALAXIES];
 
   out vec4 fragColor;
@@ -128,9 +128,9 @@ const FRAGMENT = /* glsl */ `
   /* Horizon radius. Every other length in the scene is a multiple of it. */
   const float RS = 1.0;
   const float DISC_IN = 2.6;
-  const float DISC_OUT = 9.0;
+  const float DISC_OUT = 11.5;
   /* Scale height of the gas at the inner edge; it tapers outward from here. */
-  const float DISC_H = 0.26;
+  const float DISC_H = 0.19;
   const int STEPS = 300;
 
   /* Sky palette, taken from the nebula on the map so the two rhyme. */
@@ -165,6 +165,8 @@ const FRAGMENT = /* glsl */ `
     );
   }
 
+  ${GLSL_GALAXY_SHAPE}
+
   float fbm3(vec3 p, int octaves) {
     float value = 0.0;
     float amplitude = 0.5;
@@ -177,12 +179,20 @@ const FRAGMENT = /* glsl */ `
     return value;
   }
 
-  /* Colour of the disc across its width: white hot inside, ember at the rim. */
+  /*
+   * Colour of the disc across its width: white hot at the inner edge, falling
+   * through amber to a dusty ember at the rim. The ramp is deliberately weighted
+   * to the warm end, because past the first third of the disc almost all of the
+   * area is the cooler gas, and that is what gives the body its colour.
+   */
   vec3 discColour(float t) {
-    vec3 hot = vec3(1.0, 0.96, 0.86);
-    vec3 warm = vec3(1.0, 0.72, 0.36);
-    vec3 deep = vec3(0.86, 0.36, 0.12);
-    return mix(mix(hot, warm, smoothstep(0.0, 0.55, t)), deep, smoothstep(0.55, 1.0, t));
+    vec3 hot = vec3(1.0, 0.95, 0.84);
+    vec3 amber = vec3(1.0, 0.64, 0.31);
+    vec3 ember = vec3(0.92, 0.34, 0.13);
+    vec3 dust = vec3(0.55, 0.17, 0.08);
+    vec3 warm = mix(hot, amber, smoothstep(0.0, 0.34, t));
+    warm = mix(warm, ember, smoothstep(0.3, 0.72, t));
+    return mix(warm, dust, smoothstep(0.7, 1.0, t));
   }
 
   /*
@@ -315,45 +325,37 @@ const FRAGMENT = /* glsl */ `
     for (int i = 0; i < MAX_GALAXIES; i++) {
       if (i >= uGalaxyCount) break;
 
-      vec3 gdir = uGalaxyDir[i];
-      vec4 shape = uGalaxyShape[i];
-      float angularRadius = shape.x;
+      vec4 geometry = uGalaxyGeometry[i];
+      vec3 gdir = geometry.xyz;
+      float angularRadius = geometry.w;
 
       /* Cheap reject before the tangent basis is built: well outside the
-         blob's angular reach, including the squash, no matter its roll. */
-      float reach = angularRadius * 3.4;
-      if (dot(dir, gdir) < cos(reach)) continue;
+         blob's angular reach, whatever its squash and roll turn out to be. */
+      if (dot(dir, gdir) < cos(angularRadius * 2.6)) continue;
 
       vec3 up = abs(gdir.y) > 0.99 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
       vec3 right = normalize(cross(up, gdir));
       vec3 trueUp = cross(gdir, right);
       vec2 local = vec2(dot(dir, right), dot(dir, trueUp)) / angularRadius;
 
-      float squash = shape.y;
-      float roll = shape.z;
-      float armStrength = shape.w;
-      float ca = cos(roll);
-      float sa = sin(roll);
-      vec2 rotated = vec2(local.x * ca - local.y * sa, local.x * sa + local.y * ca);
-      vec2 shaped = vec2(rotated.x, rotated.y / squash);
-      float r = length(shaped);
-      if (r >= 1.1) continue;
-
+      vec4 orientation = uGalaxyOrientation[i];
       vec4 colorA = uGalaxyColorA[i];
       vec4 colorB = uGalaxyColorB[i];
-      float seed = colorA.a;
 
-      float armAngle = atan(shaped.y, shaped.x);
-      float wind = log(r + 0.1) * 2.4;
-      float spiral = sin(armAngle * 2.0 - wind + seed * 20.0) * 0.5 + 0.5;
-      float clumps = fbm3(vec3(shaped * 2.4, seed * 12.0), 3);
+      float alpha;
+      vec3 emission = gxGalaxy(
+        local,
+        orientation.x,
+        orientation.y,
+        uGalaxyForm[i],
+        uGalaxyDetail[i],
+        uGalaxyExtra[i],
+        colorA.rgb,
+        colorB.rgb,
+        alpha
+      );
 
-      float core = exp(-r * r * 9.0);
-      float arms = smoothstep(0.2, 0.9, spiral * clumps) * smoothstep(1.1, 0.2, r);
-      float glow = clamp(core + arms * armStrength, 0.0, 1.0);
-
-      vec3 galaxyColour = mix(colorB.rgb, colorA.rgb, core);
-      colour += galaxyColour * glow * starMask * colorB.a;
+      colour += emission * colorA.a * starMask;
     }
 
     return colour;
@@ -374,6 +376,8 @@ const FRAGMENT = /* glsl */ `
     vec3 accum = vec3(0.0);
     float transmittance = 1.0;
     bool captured = false;
+    /* Closest approach of the ray, which is what the photon ring is made of. */
+    float rmin = 1e9;
 
     /*
      * A per pixel offset on the first step. Fixed steps through a cloud lay
@@ -396,6 +400,7 @@ const FRAGMENT = /* glsl */ `
       if (i >= steps) break;
 
       float r = length(pos);
+      rmin = min(rmin, r);
       /* Past the horizon nothing returns, including what was gathered on the way. */
       if (r < RS * 1.02) { captured = true; accum *= 0.1; break; }
       /* Out here the deflection is spent and there is no gas left to cross. */
@@ -468,11 +473,34 @@ const FRAGMENT = /* glsl */ `
     vec3 colour = accum;
     if (!captured) colour += sky(normalize(dir), starMask) * transmittance;
 
+    /*
+     * The photon ring: light that circled the hole at the unstable orbit at
+     * 1.5 Rs before leaving. The march bends rays correctly but cannot spend
+     * the hundreds of steps those near critical orbits need, so the ring is
+     * added analytically from each ray's closest approach. It is the sharpest
+     * feature in the frame and the thing that draws the edge of the shadow.
+     */
+    float grazing = (rmin - 1.5 * RS) / (0.5 * RS);
+    float ring = exp(-grazing * grazing * 220.0);
+    float halo = exp(-grazing * grazing * 12.0);
+    colour += vec3(1.0, 0.84, 0.68) * ring * 1.5 * transmittance;
+    colour += vec3(1.0, 0.62, 0.34) * halo * 0.14 * transmittance;
+
+    /* Not quite black inside: the shadow keeps a trace of the gas around it. */
+    if (captured) colour += vec3(0.05, 0.018, 0.012);
+
     colour = colour / (colour + vec3(0.9));
     colour = pow(colour, vec3(0.88));
     colour *= 1.0 - 0.35 * smoothstep(0.5, 1.3, screen * 2.0);
 
-    fragColor = vec4(colour, 1.0);
+    /*
+     * Dither, under one output level. Almost everything in this frame is a
+     * long slow gradient, and eight bit output turns those into contour bands;
+     * a little noise costs nothing and breaks them into grain.
+     */
+    colour += (hash13(vec3(gl_FragCoord.xy, 7.0)) - 0.5) * (1.3 / 255.0);
+
+    fragColor = vec4(max(colour, 0.0), 1.0);
   }
 `;
 
@@ -493,8 +521,11 @@ export function BlackHoleField({ quality = 1 }: { quality?: number }) {
       uAspect: { value: 1 },
       uQuality: { value: 1 },
       uGalaxyCount: { value: galaxyCount },
-      uGalaxyDir: { value: galaxies.dir },
-      uGalaxyShape: { value: galaxies.shape },
+      uGalaxyGeometry: { value: galaxies.geometry },
+      uGalaxyOrientation: { value: galaxies.orientation },
+      uGalaxyForm: { value: galaxies.form },
+      uGalaxyDetail: { value: galaxies.detail },
+      uGalaxyExtra: { value: galaxies.extra },
       uGalaxyColorA: { value: galaxies.colorA },
       uGalaxyColorB: { value: galaxies.colorB },
     };

@@ -14,7 +14,7 @@
 
 import { Billboard } from "@react-three/drei";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { STARS } from "@/lib/graph/nodes";
@@ -66,12 +66,27 @@ function Star({ node }: { node: StarNode }) {
 
   const focusScale = useRef(1);
 
+  /*
+    The focused star swells and sits closest to the camera, so leaving its hit
+    sphere in the scene would swallow pointer events meant for its neighbours.
+    Focus changes at most once per navigation, so subscribing to it in React is
+    free; nothing per frame goes through this.
+  */
+  const isFocused = useJourney((state) => state.focus === node.id);
+
+  // Unmounting the hit sphere fires no pointer out, so drop any stale hover.
+  useEffect(() => {
+    if (!isFocused) return;
+    const state = useJourney.getState();
+    if (state.hovered === node.id) state.setHovered(null);
+    setCursorMode(CursorMode.Default);
+  }, [isFocused, node.id]);
+
   useFrame((state, delta) => {
     haloUniforms.uTime.value = state.clock.elapsedTime;
 
-    const { hovered, focus } = useJourney.getState();
+    const { hovered } = useJourney.getState();
     const isHovered = hovered === node.id;
-    const isFocused = focus === node.id;
     const target = isHovered ? HOVER_SCALE : isFocused ? FOCUS_SCALE : 1;
 
     focusScale.current = damp(focusScale.current, target, 0.001, delta);
@@ -135,11 +150,14 @@ function Star({ node }: { node: StarNode }) {
         Generous hit target. It has to stay "visible" as far as three.js is
         concerned, because the raycaster skips invisible objects; writing
         neither colour nor depth makes it invisible to the eye instead.
+        The focused star drops it entirely so the pointer can reach past it.
       */}
-      <mesh onPointerOver={handleOver} onPointerOut={handleOut} onClick={handleClick}>
-        <sphereGeometry args={[Math.max(node.radius * 2.6, 2.2), 12, 12]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
-      </mesh>
+      {!isFocused && (
+        <mesh onPointerOver={handleOver} onPointerOut={handleOut} onClick={handleClick}>
+          <sphereGeometry args={[Math.max(node.radius * 2.6, 2.2), 12, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+      )}
     </group>
   );
 }

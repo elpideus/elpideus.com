@@ -17,12 +17,14 @@ import { NavRail } from "./NavRail";
 import { OrbitalTooltip } from "./OrbitalTooltip";
 import { SkyTooltip } from "./SkyTooltip";
 import { StarTooltip } from "./StarTooltip";
+import { useCheatCode } from "@/lib/hooks/useCheatCode";
 import { useHashRoute } from "@/lib/hooks/useHashRoute";
 import { useNavigationInput } from "@/lib/hooks/useNavigationInput";
 
 export function Overlay() {
   useNavigationInput();
   useHashRoute();
+  useCheatCode();
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20">
