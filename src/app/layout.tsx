@@ -61,6 +61,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#03040a",
   colorScheme: "dark",
+  // The handheld build puts chrome against both edges of the screen, so it has
+  // to be told about the notch rather than laid out inside it.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -50,4 +50,18 @@ updates per frame may live in React state.
   which `useAnchoredElement` reads through `liveOffset` every frame; it never becomes React state.
   Anything with `data-panel-drag` is excluded from the orbit gesture in `useNavigationInput`.
 
+## The handheld build
+
+`src/components/mobile` is a separate build for touch, chosen in `src/app/page.tsx` from the user
+agent and refined by `useHandheld`. It reuses every panel body from `src/components/sections` and
+the journey store, and owns its own chrome and its own leaner scene in `src/components/mobile/sky`.
+
+- The deck writes `telemetry.progress` (a float index into `JOURNEY`) from an animation frame;
+  `MobileRig` reads it inside `useFrame`. Same rule as the desktop rig: no per frame React state.
+- The deck reports arrivals into the journey store and listens for jumps out of it. Anything that
+  calls `focusStar` or `goToIndex` moves the deck, which is why the reused panels need no changes.
+- Tilt is published both into `telemetry` and as CSS variables on the root element, so the sheen
+  and the parallax are pure CSS. Roll is applied with `rotateZ` after `lookAt`, never damped.
+- There is no post processing on mobile. Star glow is a second wide halo quad instead of bloom.
+
 Full prose version: `docs/src/content/docs/architecture/`.

@@ -33,8 +33,10 @@ constellation; scrolling travels along that constellation.
 
 ## Design constraints
 
-1. **Desktop first.** A separate mobile experience is planned; nothing here should make that
-   harder, but nothing here targets touch as the primary input either.
+1. **Two builds, not breakpoints.** The desktop star map is flown with a mouse; touch devices get
+   a separate, differently shaped build in `src/components/mobile`, described in
+   [the handheld build](/architecture/handheld/). They share content, graph and state, and nothing
+   else, so neither has to compromise for the other.
 2. **Dark only.** There is one palette and it is cold, so the light in the scene reads as light.
 3. **English only for now.** Everything readable lives in `src/lib/content`, so a translation
    layer later is a data change rather than a rewrite.

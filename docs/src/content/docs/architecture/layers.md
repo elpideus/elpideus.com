@@ -33,6 +33,13 @@ Two modules connect the layers without either importing the other's components:
 
 Neither per frame path goes through React state, so flying across the map costs zero re-renders.
 
+## The same shape, twice
+
+Touch devices get a separate build with the same three part shape: a leaner WebGL layer in
+`src/components/mobile/sky`, readable DOM in `src/components/mobile`, and the same journey store
+between them. It reuses every panel body from `src/components/sections` and none of the desktop
+chrome. See [the handheld build](/architecture/handheld/).
+
 ## Why a DOM overlay rather than text in the scene
 
 Text drawn inside WebGL cannot be selected, is invisible to search engines, is expensive to lay

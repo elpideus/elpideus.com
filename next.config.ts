@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["./prototype/**", "./docs/**"],
   },
+  allowedDevOrigins: ['192.168.1.60']
 };
 
 export default nextConfig;

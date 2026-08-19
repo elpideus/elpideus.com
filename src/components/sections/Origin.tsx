@@ -9,7 +9,10 @@ import { SocialRow } from "@/components/ui/SocialLinks";
 import { StarId } from "@/lib/graph/types";
 import { TravelIntent, useJourney } from "@/lib/state/journey";
 
-export function OriginSection() {
+/** Default legend, written for a mouse. The handheld deck passes its own. */
+const POINTER_HINT = "Scroll to travel · drag to look around · click any star";
+
+export function OriginSection({ hint = POINTER_HINT }: { hint?: string }) {
   const age = ageAt();
   const years = yearsCoding();
   const focusStar = useJourney((state) => state.focusStar);
@@ -52,9 +55,7 @@ export function OriginSection() {
         <SocialRow />
       </div>
 
-      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-dim">
-        Scroll to travel · drag to look around · click any star
-      </p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-dim">{hint}</p>
     </div>
   );
 }

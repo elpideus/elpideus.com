@@ -105,6 +105,17 @@ body[data-custom-cursor="on"] * {
   --panel-tick: color-mix(in srgb, var(--color-halo) 55%, transparent);
   --panel-tick-size: 10px;
   --panel-rule: color-mix(in srgb, var(--color-halo) 16%, transparent);
+
+  /*
+   * Device tilt, published by the handheld tilt engine. Two forms of the same
+   * pair: degrees for rotations, and the raw fraction for anything that has to
+   * be multiplied by a length inside `calc`. Both sit at rest here so the
+   * desktop build, which never runs the engine, still resolves them.
+   */
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --tilt-nx: 0;
+  --tilt-ny: 0;
 }
 
 @layer utilities {
@@ -172,6 +183,28 @@ body[data-custom-cursor="on"] * {
       transparent 1px,
       transparent 3px
     );
+  }
+
+  /*
+   * Specular sheen for the handheld panels: a soft highlight that slides across
+   * the glass as the phone is tilted. It lives on its own element rather than a
+   * pseudo element, because the panels already spend both of theirs on ticks.
+   */
+  .u-sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: radial-gradient(
+      130% 60% at calc(50% + var(--tilt-ny) * 45%) calc(16% + var(--tilt-nx) * 30%),
+      color-mix(in srgb, var(--color-halo) 14%, transparent),
+      transparent 62%
+    );
+  }
+
+  /* Small parallax shift for handheld chrome, same source as the sheen. */
+  .u-tilt-shift {
+    transform: translate3d(calc(var(--tilt-ny) * -7px), calc(var(--tilt-nx) * -7px), 0);
   }
 
   /* Custom player scrub and volume bars, so the browser default thumb never appears. */
@@ -243,5 +276,27 @@ body[data-custom-cursor="on"] * {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+@keyframes waypoint-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(6%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

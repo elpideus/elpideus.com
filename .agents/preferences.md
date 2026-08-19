@@ -2,9 +2,11 @@
 
 These are the owner's standing decisions. Do not build against them.
 
-- **Desktop first.** The mobile experience will be a separate, differently shaped build. Do not
-  spend effort on touch layouts here, and do not add code that would make a separate mobile build
-  harder.
+- **Two builds, not breakpoints.** The desktop star map lives in `src/components/canvas` and
+  `src/components/overlay`; the touch build lives in `src/components/mobile`. They share content,
+  the star graph and the journey store, and nothing else. Do not add responsive layouts to the
+  desktop build, and do not make one build import the other's chrome. `src/app/page.tsx` picks
+  between them.
 - **Dark only.** No light theme.
 - **English only for now.** Other languages are possible later, so keep copy in
   `src/lib/content` rather than inline.

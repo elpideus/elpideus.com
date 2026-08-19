@@ -16,7 +16,7 @@ const config = [
     // inside the render loop. Those objects are owned by three.js, not by
     // React, and reallocating them every frame is exactly what the pattern
     // exists to avoid, so the immutability rule does not apply here.
-    files: ["src/components/canvas/**/*.tsx"],
+    files: ["src/components/canvas/**/*.tsx", "src/components/mobile/sky/**/*.tsx"],
     rules: { "react-hooks/immutability": "off" },
   },
 ];

@@ -1,15 +1,20 @@
-import { StarMap } from "@/components/canvas/StarMap";
-import { Overlay } from "@/components/overlay/Overlay";
+import { headers } from "next/headers";
+import { userAgent } from "next/server";
+
+import { SiteRoot } from "@/components/SiteRoot";
 
 /**
- * The whole site is one page: a 3D map behind a DOM overlay. Sections are
- * stars, not scroll positions, so there is nothing else to route.
+ * The whole site is one page, in two shapes.
+ *
+ * Sections are stars rather than scroll positions, so there is nothing to route
+ * here either way. All this page decides is which of the two builds the visitor
+ * gets, and it decides it from the user agent so a phone never starts loading
+ * the desktop scene.
  */
-export default function HomePage() {
-  return (
-    <main className="relative h-dvh w-screen overflow-hidden">
-      <StarMap />
-      <Overlay />
-    </main>
-  );
+export default async function HomePage() {
+  const { device } = userAgent({ headers: await headers() });
+  // Tablets count too: the desktop build is flown with hover and drag, neither
+  // of which a touch screen has, whatever size it is.
+  const handheld = device.type === "mobile" || device.type === "tablet";
+  return <SiteRoot handheld={handheld} />;
 }

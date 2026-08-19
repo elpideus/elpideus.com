@@ -32,7 +32,8 @@ future reader would need. Keep it current when behaviour changes.
 
 ```
 src/app          Next.js App Router: the single page, API routes, metadata
-src/components   canvas/ (WebGL), overlay/ (chrome), sections/ (panel bodies), ui/ (primitives)
+src/components   canvas/ (WebGL), overlay/ (chrome), sections/ (panel bodies), ui/ (primitives),
+                 mobile/ (the separate touch build, with its own sky/)
 src/lib          graph/ (the map), content/ (all copy), state/, three/ (math and shaders),
                  hooks/, cv/ (curriculum PDF)
 docs             Astro Starlight documentation site, its own package
@@ -41,9 +42,11 @@ public/media     Project imagery, one folder per project slug
 
 ## Non negotiables
 
-1. Scroll paging walks depth one stars only. Satellites are reached by click.
-2. The canvas renders no readable text.
-3. Nothing that updates every frame goes through React state.
-4. Live data degrades silently to fallbacks and logs to the console; only a visitor's own
+1. Desktop and touch are two builds, not two breakpoints. They share content, the star graph and
+   the journey store; they share no chrome.
+2. On desktop, scroll paging walks depth one stars only. Satellites are reached by click.
+3. The canvas renders no readable text.
+4. Nothing that updates every frame goes through React state.
+5. Live data degrades silently to fallbacks and logs to the console; only a visitor's own
    submission is allowed to fail visibly.
-5. No em-dashes anywhere.
+6. No em-dashes anywhere.

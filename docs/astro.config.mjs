@@ -36,6 +36,7 @@ export default defineConfig({
             { label: "Navigation and state", slug: "architecture/navigation" },
             { label: "The 3D layer", slug: "architecture/canvas" },
             { label: "The overlay", slug: "architecture/overlay" },
+            { label: "The handheld build", slug: "architecture/handheld" },
           ],
         },
         {
