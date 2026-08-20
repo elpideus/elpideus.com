@@ -42,6 +42,13 @@ nothing needs to re-render.
 - After a flight starts, the orbit eases back towards neutral so arrivals are always well framed.
 - When the pointer has been still for a moment, a slow idle drift fades back in.
 
+## Routing
+
+Every star owns a path rather than a fragment, and moving between them never navigates: the store
+is the source of truth and `usePathRoute` writes the URL behind it with `history.replaceState`.
+Arriving at a path, or pressing back onto one, flies to the star it names. The full table lives in
+[Discovery](/operations/discovery/).
+
 ## Keyboard
 
 Every gesture has a keyboard equivalent: arrows, page up and page down, space, home and end, and

@@ -30,18 +30,23 @@ export const metadata: Metadata = {
     template: "%s - elpideus",
   },
   description: SITE.description,
+  applicationName: "elpideus",
   authors: [{ name: PROFILE.name, url: SITE.url }],
   creator: PROFILE.name,
+  publisher: PROFILE.name,
   keywords: [
     "Stefan Narcis Cucoranu",
     "elpideus",
     "full stack developer",
-    "web developer Italy",
-    "Next.js",
-    "React",
+    "full stack developer Italy",
+    "remote React developer",
+    "Next.js developer",
+    "web developer Ostuni",
+    "freelance web developer Puglia",
     "three.js",
     "portfolio",
   ],
+  category: "technology",
   openGraph: {
     type: "website",
     url: SITE.url,
@@ -55,7 +60,19 @@ export const metadata: Metadata = {
     title: SITE.title,
     description: SITE.description,
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    // Rich results and AI overviews only quote what they are allowed to show,
+    // so nothing is capped here.
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export const viewport: Viewport = {
@@ -66,6 +83,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * The document shell only: fonts, tokens and the head.
+ *
+ * The map is mounted one level down, by the layout of the `(map)` group, so
+ * pages that are not part of the map (the 404 and the shader lab) do not get a
+ * star field behind them.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>

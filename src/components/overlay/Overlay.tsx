@@ -18,12 +18,12 @@ import { OrbitalTooltip } from "./OrbitalTooltip";
 import { SkyTooltip } from "./SkyTooltip";
 import { StarTooltip } from "./StarTooltip";
 import { useCheatCode } from "@/lib/hooks/useCheatCode";
-import { useHashRoute } from "@/lib/hooks/useHashRoute";
+import { usePathRoute } from "@/lib/hooks/usePathRoute";
 import { useNavigationInput } from "@/lib/hooks/useNavigationInput";
 
 export function Overlay() {
   useNavigationInput();
-  useHashRoute();
+  usePathRoute();
   useCheatCode();
 
   return (

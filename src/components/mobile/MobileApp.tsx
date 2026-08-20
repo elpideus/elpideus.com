@@ -27,10 +27,10 @@ import { StarChart } from "./StarChart";
 import { IntroVeil } from "@/components/overlay/IntroVeil";
 import { useTiltEngine } from "@/lib/hooks/useDeviceTilt";
 import { TouchLayout, useFormFactor } from "@/lib/hooks/useFormFactor";
-import { useHashRoute } from "@/lib/hooks/useHashRoute";
+import { usePathRoute } from "@/lib/hooks/usePathRoute";
 
 export function MobileApp({ layout }: { layout: TouchLayout }) {
-  useHashRoute();
+  usePathRoute();
   useTiltEngine();
   const shape = useFormFactor(layout);
 

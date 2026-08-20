@@ -290,3 +290,8 @@ const STAR_BY_SLUG = new Map<string, StarId>(STARS.map((star) => [starSlug(star.
 export function starFromSlug(slug: string): StarId | null {
   return STAR_BY_SLUG.get(slug.toLowerCase()) ?? null;
 }
+
+/** The satellite that holds a given payload key, e.g. a project slug. */
+export function starByRef(ref: string): StarNode | null {
+  return STARS.find((star) => star.ref === ref) ?? null;
+}

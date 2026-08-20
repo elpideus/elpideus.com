@@ -59,6 +59,7 @@ export default defineConfig({
           label: "Operations",
           items: [
             { label: "Design system", slug: "operations/design-system" },
+            { label: "Discovery", slug: "operations/discovery" },
             { label: "Performance", slug: "operations/performance" },
             { label: "Deployment", slug: "operations/deployment" },
             { label: "Roadmap", slug: "operations/roadmap" },

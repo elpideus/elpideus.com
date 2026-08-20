@@ -54,10 +54,25 @@ updates per frame may live in React state.
   which `useAnchoredElement` reads through `liveOffset` every frame; it never becomes React state.
   Anything with `data-panel-drag` is excluded from the orbit gesture in `useNavigationInput`.
 
+## Routing
+
+Every star owns a real path (`/about`, `/projects/televault`), listed in `src/lib/seo/routes.ts`.
+The map itself never navigates: `usePathRoute` rewrites the URL with `history.replaceState` when
+focus changes and flies to whatever the path names on arrival or on a back press. Old `#hash`
+links are translated once on entry.
+
+- The canvas is mounted by `src/app/(map)/layout.tsx`, not by a page, because a layout is the one
+  part of the tree Next.js keeps across a navigation. A page under it carries only
+  `StarDocument`, the server rendered readable twin of that star.
+- `StarDocument` is clipped, `inert` and `aria-hidden`: it exists for crawlers and language
+  models, and the overlay panels are already the accessible copy of the same words.
+- Anything readable that is added to a panel belongs in `src/lib/content`, or the document, the
+  social cards, the JSON-LD and `llms.txt` all drift out of sync at once.
+
 ## The handheld build
 
-`src/components/mobile` is a separate build for touch, chosen in `src/app/page.tsx` from the user
-agent and refined by `useHandheld`. It reuses every panel body from `src/components/sections` and
+`src/components/mobile` is a separate build for touch, chosen in `src/app/(map)/layout.tsx` from
+the user agent and refined by `useHandheld`. It reuses every panel body from `src/components/sections` and
 the journey store, and owns its own chrome and its own leaner scene in `src/components/mobile/sky`.
 
 Inside it are two chrome layouts, not two builds: the **deck** for phones (`MobileDeck`, sky

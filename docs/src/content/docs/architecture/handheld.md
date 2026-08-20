@@ -89,7 +89,7 @@ Two positions are tracked, not one:
   longer. A long panel holds the reader in place while the camera drifts on.
 
 The journey store stays the single source of truth. The deck reports arrivals into it with
-`goToIndex` and listens for jumps out of it, so the chart sheet, the hash route and the in panel
+`goToIndex` and listens for jumps out of it, so the chart sheet, the path route and the in panel
 links keep working without knowing which layout is mounted. A satellite focus is ignored by the
 scroll engine on purpose: its sheet or dossier covers the reading, and leaving the column parked on
 Betelgeuse is what makes closing it feel like stepping back.
