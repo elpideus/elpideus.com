@@ -3,6 +3,14 @@
 /**
  * Device tilt, turned into two numbers the rest of the mobile build can use.
  *
+ * Two sensors can supply it. `deviceorientation` is the good one, but a browser
+ * only fires it when the hardware can be fused into a pose, which takes a
+ * gyroscope or a magnetometer. Plenty of phones ship neither and carry an
+ * accelerometer alone, so `devicemotion` is attached alongside and the gravity
+ * vector it reports is turned into the same pitch and roll. Both are armed
+ * together and the first one to speak owns the stream; orientation may take it
+ * over from motion later, never the other way round.
+ *
  * The sensor is always on. It arms itself as soon as the mobile build mounts,
  * and where the platform gates it behind a gesture, iOS being the only one, it
  * waits for the first touch and arms then. The first sample becomes the neutral
@@ -37,12 +45,22 @@ interface OrientationPermissionApi {
   requestPermission?: () => Promise<"granted" | "denied">;
 }
 
+/** Which sensor is feeding the pose, once one has spoken. */
+type TiltSource = "orientation" | "motion";
+
+/** How much of the running gravity estimate each raw sample leaves in place. */
+const GRAVITY_SMOOTHING = 0.82;
+/** Below this magnitude the sample is freefall or noise, not a direction. */
+const GRAVITY_FLOOR = 1.5;
+
 /** Raw, unsmoothed target in the -1..1 range, written by the sensor. */
 const target = { x: 0, y: 0 };
 /** Smoothed value, written by the animation frame loop. */
 const current = { x: 0, y: 0 };
 
 let neutral: { beta: number; gamma: number } | null = null;
+let source: TiltSource | null = null;
+let gravity: { x: number; y: number; z: number } | null = null;
 let listening = false;
 let sampleTimer = 0;
 let retries = 0;
@@ -55,17 +73,29 @@ function screenAngle(): number {
   return window.screen?.orientation?.angle ?? 0;
 }
 
-function handleOrientation(event: DeviceOrientationEvent): void {
-  if (event.beta === null || event.gamma === null) return;
+/**
+ * The one place a pose becomes the two published numbers, whichever sensor
+ * measured it. Angles arrive in the `deviceorientation` convention: beta is the
+ * front to back lean, gamma the side to side one, both in degrees.
+ */
+function applyPose(beta: number, gamma: number, from: TiltSource): void {
+  // Orientation is the better reading, so it is allowed to take the stream off
+  // motion. Motion is never allowed to take it back, or a phone with both would
+  // flicker between two slightly disagreeing poses.
+  if (source !== from) {
+    if (source !== null && from === "motion") return;
+    source = from;
+    neutral = null;
+  }
 
   window.clearTimeout(sampleTimer);
   retries = 0;
   useMobileUi.getState().setTilt(TiltStatus.Live);
 
-  neutral ??= { beta: event.beta, gamma: event.gamma };
+  neutral ??= { beta, gamma };
 
-  let pitch = event.beta - neutral.beta;
-  let roll = event.gamma - neutral.gamma;
+  let pitch = beta - neutral.beta;
+  let roll = gamma - neutral.gamma;
 
   const angle = screenAngle();
   if (angle === 90) [pitch, roll] = [-roll, pitch];
@@ -76,6 +106,89 @@ function handleOrientation(event: DeviceOrientationEvent): void {
   target.y = clamp(roll / RANGE_DEG, -1, 1);
 }
 
+function handleOrientation(event: DeviceOrientationEvent): void {
+  if (event.beta === null || event.gamma === null) return;
+  applyPose(event.beta, event.gamma, "orientation");
+}
+
+/**
+ * The accelerometer only path.
+ *
+ * `accelerationIncludingGravity` is the specific force on the device, which at
+ * rest is a vector of one gravity pointing out of whichever face is up: flat on
+ * a table it reads roughly `(0, 0, 9.8)`. That direction alone fixes pitch and
+ * roll, which is everything this hook publishes; the yaw an accelerometer
+ * cannot give is never asked for. Waving the phone about adds real acceleration
+ * to the reading, so the vector is smoothed before the angles are taken, and
+ * anything too short to point anywhere is dropped.
+ */
+function handleMotion(event: DeviceMotionEvent): void {
+  const sample = event.accelerationIncludingGravity;
+  if (!sample) return;
+
+  const { x, y, z } = sample;
+  if (x === null || y === null || z === null) return;
+  if (Math.hypot(x, y, z) < GRAVITY_FLOOR) return;
+
+  if (gravity === null) gravity = { x, y, z };
+  else {
+    const keep = GRAVITY_SMOOTHING;
+    gravity = {
+      x: gravity.x * keep + x * (1 - keep),
+      y: gravity.y * keep + y * (1 - keep),
+      z: gravity.z * keep + z * (1 - keep),
+    };
+  }
+
+  // The signs match what `deviceorientation` calls beta and gamma, so a phone
+  // that reports both sensors leans the same way whichever one is feeding the
+  // stream. Checked on hardware: the sky follows the phone rather than running
+  // from it.
+  const deg = 180 / Math.PI;
+  const beta = Math.atan2(gravity.y, gravity.z) * deg;
+  const gamma = Math.atan2(-gravity.x, Math.hypot(gravity.y, gravity.z)) * deg;
+
+  applyPose(beta, gamma, "motion");
+}
+
+/** Attaches whichever of the two sensor events this browser defines. */
+function attachSensors(): void {
+  if (typeof DeviceOrientationEvent !== "undefined") {
+    window.addEventListener("deviceorientation", handleOrientation);
+  }
+  if (typeof DeviceMotionEvent !== "undefined") {
+    window.addEventListener("devicemotion", handleMotion);
+  }
+}
+
+function detachSensors(): void {
+  window.removeEventListener("deviceorientation", handleOrientation);
+  window.removeEventListener("devicemotion", handleMotion);
+}
+
+/** What a permission gate had to say, once asked. */
+type Verdict = "granted" | "denied" | "ungated" | "deferred";
+
+/**
+ * Asks the platform for one sensor, where it gates one behind a gesture.
+ *
+ * A refusal is final. A throw means the request was made outside a gesture the
+ * platform accepts, so nothing was decided and it is worth asking again later.
+ */
+async function requestGate(ctor: unknown): Promise<Verdict> {
+  if (typeof ctor === "undefined") return "ungated";
+
+  const gate = ctor as OrientationPermissionApi;
+  if (typeof gate.requestPermission !== "function") return "ungated";
+
+  try {
+    return (await gate.requestPermission()) === "granted" ? "granted" : "denied";
+  } catch (error) {
+    console.error("[tilt] permission request failed:", error);
+    return "deferred";
+  }
+}
+
 /**
  * Starts listening, asking first where the platform requires it. Safe to call
  * repeatedly: a second call while live simply recalibrates the neutral pose.
@@ -83,7 +196,10 @@ function handleOrientation(event: DeviceOrientationEvent): void {
 export async function enableTilt(): Promise<TiltStatus> {
   const ui = useMobileUi.getState();
 
-  if (typeof DeviceOrientationEvent === "undefined") {
+  const hasOrientation = typeof DeviceOrientationEvent !== "undefined";
+  const hasMotion = typeof DeviceMotionEvent !== "undefined";
+
+  if (!hasOrientation && !hasMotion) {
     ui.setTilt(TiltStatus.Unsupported);
     return TiltStatus.Unsupported;
   }
@@ -93,27 +209,28 @@ export async function enableTilt(): Promise<TiltStatus> {
     return ui.tilt;
   }
 
-  const gate = DeviceOrientationEvent as unknown as OrientationPermissionApi;
-  if (typeof gate.requestPermission === "function") {
-    try {
-      const verdict = await gate.requestPermission();
-      if (verdict !== "granted") {
-        ui.setTilt(TiltStatus.Denied);
-        return TiltStatus.Denied;
-      }
-    } catch (error) {
-      // The call threw rather than being answered, which means it was made
-      // outside a gesture the platform accepts. Nothing was decided, so the
-      // status is left alone and the caller is free to wait for a better
-      // moment and ask again.
-      console.error("[tilt] permission request failed:", error);
-      return TiltStatus.Idle;
-    }
+  // Both gates are asked for, since a device may answer for one sensor and not
+  // the other, and a single grant is enough to run on. Only the sensors this
+  // browser actually has are counted, so an absent one cannot vote.
+  const gates: Promise<Verdict>[] = [];
+  if (hasOrientation) gates.push(requestGate(DeviceOrientationEvent));
+  if (hasMotion) gates.push(requestGate(DeviceMotionEvent));
+  const verdicts = await Promise.all(gates);
+
+  if (!verdicts.some((verdict) => verdict === "granted" || verdict === "ungated")) {
+    // Nothing was decided either way, so the status is left alone and the
+    // caller is free to wait for a better moment and ask again.
+    if (verdicts.some((verdict) => verdict === "deferred")) return TiltStatus.Idle;
+
+    ui.setTilt(TiltStatus.Denied);
+    return TiltStatus.Denied;
   }
 
   neutral = null;
+  source = null;
+  gravity = null;
   listening = true;
-  window.addEventListener("deviceorientation", handleOrientation);
+  attachSensors();
 
   retries = 0;
   waitForSample(SAMPLE_TIMEOUT_MS);
@@ -143,8 +260,8 @@ function waitForSample(delay: number): void {
     if (retries >= RETRY_LIMIT) return;
 
     retries += 1;
-    window.removeEventListener("deviceorientation", handleOrientation);
-    window.addEventListener("deviceorientation", handleOrientation);
+    detachSensors();
+    attachSensors();
     waitForSample(RETRY_MS);
   }, delay);
 }
@@ -152,9 +269,11 @@ function waitForSample(delay: number): void {
 /** Stops listening and eases everything back to level. */
 export function disableTilt(): void {
   window.clearTimeout(sampleTimer);
-  if (listening) window.removeEventListener("deviceorientation", handleOrientation);
+  if (listening) detachSensors();
   listening = false;
   neutral = null;
+  source = null;
+  gravity = null;
   target.x = 0;
   target.y = 0;
   useMobileUi.getState().setTilt(TiltStatus.Idle);

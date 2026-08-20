@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["./prototype/**", "./docs/**"],
   },
-  allowedDevOrigins: ['192.168.1.60']
+  allowedDevOrigins: ["192.168.1.60", "192.168.1.71", "localhost"],
 };
 
 export default nextConfig;

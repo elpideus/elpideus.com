@@ -15,3 +15,6 @@ docs/dist/
 docs/node_modules/
 graphify-out/
 prototype/
+
+# local https dev certificates
+/certificates

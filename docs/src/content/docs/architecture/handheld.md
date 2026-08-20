@@ -151,7 +151,7 @@ the hand rather than the camera following it, the same grab and pull the desktop
 
 ## Tilt
 
-`src/lib/hooks/useDeviceTilt.ts` turns the device orientation sensor into two numbers, published
+`src/lib/hooks/useDeviceTilt.ts` turns the device motion sensors into two numbers, published
 two ways:
 
 - into `telemetry`, for the rig, which applies them with `rotateX`, `rotateY` and `rotateZ` after
@@ -159,6 +159,18 @@ two ways:
 - onto the root element as `--tilt-x` and `--tilt-y` in degrees, plus `--tilt-nx` and `--tilt-ny`
   as raw fractions for anything that has to multiply a length inside `calc`. The panel sheen and
   the ladder parallax are pure CSS reading those variables, so no React render is involved.
+
+Two sensors can supply the pose. `deviceorientation` is the good one, but a browser only fires it
+when the hardware can be fused into a pose, which takes a gyroscope or a magnetometer, and plenty
+of phones ship neither. Those carry a bare accelerometer, so `devicemotion` is attached alongside
+and its `accelerationIncludingGravity` vector is turned into the same pitch and roll: at rest that
+vector is one gravity pointing out of whichever face is up, and its direction alone fixes both
+angles. The yaw an accelerometer cannot give is never asked for. Real acceleration from waving the
+phone about lands in the same reading, so the vector runs through a low pass before the angles are
+taken, and a sample too short to point anywhere is dropped. Both sensors are armed together and the
+first to speak owns the stream; orientation may take it over from motion later, never the other way
+round, and the neutral pose is recalibrated when it does. On iOS both permission gates are asked in
+the same gesture, and one grant is enough to run on.
 
 Tilt is always on and has no control. `useTiltEngine` arms the sensor when the mobile build
 mounts; where the platform gates it behind a gesture, iOS being the only one, the permission call

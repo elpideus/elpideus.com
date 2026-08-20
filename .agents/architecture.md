@@ -74,6 +74,9 @@ engine (`useJourneyScroll`), the chart drawing (`ChartMap`) and every panel body
 - Where the star sits on the glass is the chrome's decision, published as `telemetry.focusX/focusY`
   in screen fractions; the rig converts them into a look at offset using its own frustum. Do not
   add layout constants to the rig.
+- Tilt reads `deviceorientation` where the phone can fuse a pose and falls back to the
+  `devicemotion` gravity vector where it cannot, which is any device without a gyroscope or
+  magnetometer. First sensor to report owns the stream.
 - Tilt is published both into `telemetry` and as CSS variables on the root element, so the sheen
   and the parallax are pure CSS. Roll is applied with `rotateZ` after `lookAt`, never damped.
 - The bridge adds a drag on the sky (`useSkyLook`), written into `telemetry.lookX/lookY` and damped
