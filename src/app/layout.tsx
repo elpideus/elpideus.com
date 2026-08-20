@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 
 import "./globals.css";
@@ -93,7 +94,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {/*
+         * Traffic, counted where the URL is written. Moving between stars
+         * rewrites the path through the history API, which Next.js reports to
+         * the router, so a star visit is counted as the page view it now is.
+         */}
+        <Analytics />
+      </body>
     </html>
   );
 }
