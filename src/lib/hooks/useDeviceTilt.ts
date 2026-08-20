@@ -140,13 +140,15 @@ function handleMotion(event: DeviceMotionEvent): void {
     };
   }
 
-  // The signs match what `deviceorientation` calls beta and gamma, so a phone
-  // that reports both sensors leans the same way whichever one is feeding the
-  // stream. Checked on hardware: the sky follows the phone rather than running
-  // from it.
+  // Both angles are negated on the way out. The vector Chrome reports here runs
+  // along the reaction holding the device up rather than along gravity, which
+  // is the opposite sense to the one `deviceorientation` uses for beta and
+  // gamma, so reading it straight gives a sky that leans away from the phone
+  // instead of with it. Near level the angles are small, so flipping the two of
+  // them rather than the vector avoids the half turn negating `z` would add.
   const deg = 180 / Math.PI;
-  const beta = Math.atan2(gravity.y, gravity.z) * deg;
-  const gamma = Math.atan2(-gravity.x, Math.hypot(gravity.y, gravity.z)) * deg;
+  const beta = -Math.atan2(gravity.y, gravity.z) * deg;
+  const gamma = Math.atan2(gravity.x, Math.hypot(gravity.y, gravity.z)) * deg;
 
   applyPose(beta, gamma, "motion");
 }
