@@ -15,6 +15,8 @@ import {
   type GalaxyForm,
 } from "@/lib/three/galaxyField";
 
+import { filterThreeConsole } from "@/lib/three/console";
+
 const COLS = 8;
 const ROWS = 5;
 const SPACING = 2.4;
@@ -49,6 +51,12 @@ function Cell({ form, x, y }: { form: GalaxyForm; x: number; y: number }) {
     </mesh>
   );
 }
+
+/*
+ * Before any canvas builds its store: three warns about a deprecated class that
+ * @react-three/fiber constructs, and no call site here can answer for it.
+ */
+filterThreeConsole();
 
 export default function GalaxyLab() {
   const forms = useMemo(() => buildGalaxyField(COLS * ROWS, [0.012, 0.22]), []);

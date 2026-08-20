@@ -21,6 +21,7 @@ import { MobileStarfield } from "./MobileStarfield";
 import { MobileStars } from "./MobileStars";
 import { SkyLinks } from "./SkyLinks";
 import { WarpStreaks } from "./WarpStreaks";
+import { filterThreeConsole } from "@/lib/three/console";
 
 /**
  * Pixel ratio bounds. The upper bound is well under what modern phones report:
@@ -28,6 +29,12 @@ import { WarpStreaks } from "./WarpStreaks";
  * warm phone, and at this scale the sky is all soft gradients anyway.
  */
 const DPR: [number, number] = [1, 1.5];
+
+/*
+ * Before any canvas builds its store: three warns about a deprecated class that
+ * @react-three/fiber constructs, and no call site here can answer for it.
+ */
+filterThreeConsole();
 
 export function MobileSky() {
   return (

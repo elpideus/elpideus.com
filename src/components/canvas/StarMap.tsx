@@ -25,6 +25,13 @@ import { Starfield } from "./Starfield";
 import { useDeviceProfile } from "@/lib/hooks/useDeviceProfile";
 import { useJourney } from "@/lib/state/journey";
 import { CursorMode, setCursorMode } from "@/lib/state/cursor";
+import { filterThreeConsole } from "@/lib/three/console";
+
+/*
+ * Before any canvas builds its store: three warns about a deprecated class that
+ * @react-three/fiber constructs, and no call site here can answer for it.
+ */
+filterThreeConsole();
 
 export function StarMap() {
   const profile = useDeviceProfile();
