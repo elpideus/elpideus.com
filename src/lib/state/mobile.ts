@@ -37,6 +37,23 @@ export interface SkyTelemetry {
   /** Tilt in radians, already smoothed and clamped. */
   tiltX: number;
   tiltY: number;
+  /**
+   * Where on the screen the focused star should sit, as a fraction of the
+   * viewport: 0.5 is dead centre, 0 is the left or top edge. The chrome owns
+   * this because only the chrome knows how much glass it is covering, and the
+   * rig turns it into a look at offset once it knows the camera frustum. The
+   * resting value frames the star in the upper middle, which is where the deck
+   * wants it.
+   */
+  focusX: number;
+  focusY: number;
+  /**
+   * Free look, in radians, added on top of the flight path exactly like tilt.
+   * The bridge writes it from a drag on the open sky; the deck never does,
+   * because on a phone the whole screen belongs to the scroll.
+   */
+  lookX: number;
+  lookY: number;
   reducedMotion: boolean;
 }
 
@@ -45,6 +62,10 @@ export const telemetry: SkyTelemetry = {
   warp: 0,
   tiltX: 0,
   tiltY: 0,
+  focusX: 0.5,
+  focusY: 0.28,
+  lookX: 0,
+  lookY: 0,
   reducedMotion: false,
 };
 

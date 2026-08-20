@@ -17,6 +17,7 @@
 import dynamic from "next/dynamic";
 
 import { useHandheld } from "@/lib/hooks/useHandheld";
+import { TouchLayout } from "@/lib/state/layout";
 
 const DesktopApp = dynamic(() =>
   import("@/components/DesktopApp").then((module) => module.DesktopApp),
@@ -26,6 +27,15 @@ const MobileApp = dynamic(() =>
   import("@/components/mobile/MobileApp").then((module) => module.MobileApp),
 );
 
-export function SiteRoot({ handheld }: { handheld: boolean }) {
-  return useHandheld(handheld) ? <MobileApp /> : <DesktopApp />;
+export interface SiteRootProps {
+  readonly handheld: boolean;
+  /**
+   * The server's guess at which touch layout to open with, so a tablet does not
+   * paint the phone deck for one frame before correcting itself.
+   */
+  readonly layout: TouchLayout;
+}
+
+export function SiteRoot({ handheld, layout }: SiteRootProps) {
+  return useHandheld(handheld) ? <MobileApp layout={layout} /> : <DesktopApp />;
 }

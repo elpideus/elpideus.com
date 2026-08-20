@@ -12,6 +12,13 @@
  * Focusing a satellite takes the camera off the corridor entirely, which is
  * what makes a project sheet feel like a place rather than a modal.
  *
+ * Where the star lands on the glass is not the rig's decision. The chrome asks
+ * for a screen fraction through `telemetry.focusX/focusY`, because only the
+ * chrome knows how much of the screen it is covering, and the rig converts that
+ * into a look at offset once it knows how wide the frustum is at its parking
+ * distance. That is what lets one camera serve a phone deck, a tablet bridge
+ * beside the sky and a tablet bridge above it.
+ *
  * Two rules from the desktop rig carry over unchanged: nothing per frame goes
  * through React, and the roll is applied with `rotateZ` after `lookAt` rather
  * than damped as an Euler component, because `lookAt` rewrites the whole
@@ -19,7 +26,7 @@
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { JOURNEY, getStar } from "@/lib/graph/nodes";
@@ -33,12 +40,11 @@ const STANDOFF = new THREE.Vector3(0, 2.2, 15);
 /** Same, for a satellite: closer, because satellites are much smaller. */
 const SATELLITE_STANDOFF = new THREE.Vector3(0, 1, 8);
 /**
- * How far below the star the camera actually looks. Pushing the star into the
- * upper third of a portrait screen is what leaves room for the panel without
- * ever burying the thing the panel is about.
+ * A satellite is framed nearer the middle than a section star: its sheet or its
+ * dossier covers less glass, and it is small enough that pushing it to an edge
+ * loses it.
  */
-const LOOK_DROP = 3.8;
-const SATELLITE_LOOK_DROP = 1.8;
+const SATELLITE_FRAME_PULL = 0.85;
 /** Camera speed, in world units per second, that counts as full warp. */
 const FULL_WARP = 70;
 /** Frames to let the first shaders compile before the veil is allowed to lift. */
@@ -52,6 +58,9 @@ export function MobileRig() {
   const wantedTarget = useMemo(() => new THREE.Vector3(), []);
   const smoothTarget = useMemo(() => new THREE.Vector3(), []);
   const scratch = useMemo(() => new THREE.Vector3(), []);
+  const framing = useMemo(() => new THREE.Vector2(), []);
+  /** Free look, damped towards whatever the chrome is currently asking for. */
+  const look = useMemo(() => new THREE.Vector2(), []);
 
   /** Camera stations, one per section star, in journey order. */
   const stations = useMemo(
@@ -59,9 +68,33 @@ export function MobileRig() {
     [],
   );
 
-  // Start parked on the first star rather than flying in from nowhere.
+  /**
+   * Turns the framing request into a look at offset in world units.
+   *
+   * The chrome says where on the glass the star belongs; only the rig knows how
+   * wide the frustum is at the distance it is parked from that star, so the
+   * conversion happens here. Aiming away from a point is what moves it towards
+   * the opposite edge, hence the subtraction at the call sites.
+   */
+  const frameOffset = useCallback(
+    (distance: number, pull: number, out: THREE.Vector2) => {
+      const lens = camera as THREE.PerspectiveCamera;
+      const height = 2 * distance * Math.tan((lens.fov * Math.PI) / 360);
+      out.set(
+        (telemetry.focusX - 0.5) * height * lens.aspect * pull,
+        (0.5 - telemetry.focusY) * height * pull,
+      );
+    },
+    [camera],
+  );
+
+  /*
+   * Start parked on the first star rather than flying in from nowhere. The
+   * frustum is not measurable yet on the first tick, so the opening drop is a
+   * rough stand in for the framing offset; the first frame corrects it.
+   */
   useEffect(() => {
-    smoothTarget.copy(stations[0]).setY(stations[0].y - LOOK_DROP);
+    smoothTarget.copy(stations[0]).setY(stations[0].y - STANDOFF.length() * 0.25);
     camera.position.copy(stations[0]).add(STANDOFF);
     camera.lookAt(smoothTarget);
     previous.copy(camera.position);
@@ -75,7 +108,7 @@ export function MobileRig() {
     if (onSatellite) {
       wantedTarget.set(...focused.position);
       wantedPosition.copy(wantedTarget).add(SATELLITE_STANDOFF);
-      wantedTarget.y -= SATELLITE_LOOK_DROP;
+      frameOffset(SATELLITE_STANDOFF.length(), SATELLITE_FRAME_PULL, framing);
     } else {
       const progress = clamp(telemetry.progress, 0, stations.length - 1);
       const index = Math.min(Math.floor(progress), stations.length - 2);
@@ -83,8 +116,11 @@ export function MobileRig() {
 
       wantedTarget.copy(stations[index]).lerp(stations[index + 1], blend);
       wantedPosition.copy(wantedTarget).add(STANDOFF);
-      wantedTarget.y -= LOOK_DROP;
+      frameOffset(STANDOFF.length(), 1, framing);
     }
+
+    wantedTarget.x -= framing.x;
+    wantedTarget.y -= framing.y;
 
     // A slow breath so a stationary sky is never completely still.
     if (!telemetry.reducedMotion) {
@@ -106,11 +142,16 @@ export function MobileRig() {
 
     camera.lookAt(smoothTarget);
 
-    // Tilt is applied on top of the flight path, never mixed into it, so the
-    // sky answers the phone immediately however slowly the camera is moving.
+    // Free look is damped rather than applied raw, so releasing a drag drifts
+    // the sky back to the flight path instead of snapping it.
+    look.x = damp(look.x, telemetry.lookX, 0.0025, delta);
+    look.y = damp(look.y, telemetry.lookY, 0.0025, delta);
+
+    // Tilt and look are applied on top of the flight path, never mixed into it,
+    // so the sky answers the hand immediately however slowly the camera moves.
     if (!telemetry.reducedMotion) {
-      camera.rotateX(-telemetry.tiltX);
-      camera.rotateY(-telemetry.tiltY);
+      camera.rotateX(-telemetry.tiltX + look.x);
+      camera.rotateY(-telemetry.tiltY + look.y);
       camera.rotateZ(telemetry.tiltY * 0.45);
     }
 

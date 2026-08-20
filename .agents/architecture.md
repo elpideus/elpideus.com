@@ -46,6 +46,10 @@ updates per frame may live in React state.
 - `wheelScopeOf` in `useNavigationInput` decides what a wheel gesture does: `[data-modal]` swallows
   it, `[data-native-scroll]` keeps native behaviour, everything else pages the map. Add the right
   attribute rather than special casing a component.
+- `.u-ticks` sets `position: relative`, and it is declared after Tailwind's `absolute` in the
+  utilities layer, so an element carrying both silently stays in flow. Pin it from a wrapper.
+- An `<svg>` with `width: auto` ignores its `viewBox` ratio and fills its container instead. Give
+  the drawing a width and let the height follow.
 - The waypoint panel is draggable by its header. The gesture writes into `lib/state/panel.ts`,
   which `useAnchoredElement` reads through `liveOffset` every frame; it never becomes React state.
   Anything with `data-panel-drag` is excluded from the orbit gesture in `useNavigationInput`.
@@ -56,12 +60,27 @@ updates per frame may live in React state.
 agent and refined by `useHandheld`. It reuses every panel body from `src/components/sections` and
 the journey store, and owns its own chrome and its own leaner scene in `src/components/mobile/sky`.
 
-- The deck writes `telemetry.progress` (a float index into `JOURNEY`) from an animation frame;
-  `MobileRig` reads it inside `useFrame`. Same rule as the desktop rig: no per frame React state.
-- The deck reports arrivals into the journey store and listens for jumps out of it. Anything that
-  calls `focusStar` or `goToIndex` moves the deck, which is why the reused panels need no changes.
+Inside it are two chrome layouts, not two builds: the **deck** for phones (`MobileDeck`, sky
+windows cut into one scrolling column) and the **bridge** for tablets (`bridge/`, a full bleed sky
+with a console docked over one edge of it: left in landscape, bottom in portrait). `useFormFactor` picks between them from the short edge of the
+screen, seeded on the server from the user agent. They share the scene, the camera, the scroll
+engine (`useJourneyScroll`), the chart drawing (`ChartMap`) and every panel body.
+
+- The scroll engine writes `telemetry.progress` (a float index into `JOURNEY`) from an animation
+  frame; `MobileRig` reads it inside `useFrame`. Same rule as the desktop rig: no per frame React
+  state.
+- It reports arrivals into the journey store and listens for jumps out of it. Anything that calls
+  `focusStar` or `goToIndex` moves the column, which is why the reused panels need no changes.
+- Where the star sits on the glass is the chrome's decision, published as `telemetry.focusX/focusY`
+  in screen fractions; the rig converts them into a look at offset using its own frustum. Do not
+  add layout constants to the rig.
 - Tilt is published both into `telemetry` and as CSS variables on the root element, so the sheen
   and the parallax are pure CSS. Roll is applied with `rotateZ` after `lookAt`, never damped.
+- The bridge adds a drag on the sky (`useSkyLook`), written into `telemetry.lookX/lookY` and damped
+  back to zero by the rig. The deck has no such gesture: the whole screen is the scroll.
+- In the console the waypoints are one document, not cards, and the divider between two of them is
+  the transit rule that carries the leg readout. Do not put a panel frame back around them: the
+  console is already the surface.
 - There is no post processing on mobile. Star glow is a second wide halo quad instead of bloom.
 
 Full prose version: `docs/src/content/docs/architecture/`.
