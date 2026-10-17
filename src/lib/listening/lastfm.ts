@@ -13,8 +13,18 @@
 
 const ENDPOINT = "https://ws.audioscrobbler.com/2.0/";
 
-/** Last.fm answers in well under a second; anything slower is an outage. */
+/**
+ * Last.fm answers in well under a second; anything slower is an outage. The
+ * budget covers the retry too, so retrying never makes the card slower to fail.
+ */
 const TIMEOUT_MS = 4000;
+
+/**
+ * Codes Last.fm documents as "please try again": operation failed (8) and a
+ * temporary error (16). Error 8 turns up now and then on its own, and an
+ * immediate second request usually succeeds.
+ */
+const TRANSIENT_ERRORS: ReadonlySet<number> = new Set([8, 16]);
 
 /** Last.fm's grey star, served when a scrobble has no artwork of its own. */
 const PLACEHOLDER_ARTWORK = "2a96cbd8b46e442fc41c2b86b821562f";
@@ -98,6 +108,17 @@ function toListening(raw: LastFmTrack | undefined): Listening {
     : { state: ListeningState.Recent, track };
 }
 
+/** One request. An API error comes back in the payload for the caller to judge. */
+async function requestRecentTracks(
+  query: URLSearchParams,
+  signal: AbortSignal,
+): Promise<LastFmResponse> {
+  const response = await fetch(`${ENDPOINT}?${query}`, { cache: "no-store", signal });
+  const payload = (await response.json()) as LastFmResponse;
+  if (!payload.error && !response.ok) throw new Error(`last.fm responded ${response.status}`);
+  return payload;
+}
+
 export async function fetchListening(): Promise<Listening> {
   const apiKey = process.env.LASTFM_API_KEY;
   const username = process.env.LASTFM_USERNAME;
@@ -113,14 +134,14 @@ export async function fetchListening(): Promise<Listening> {
     limit: "1",
   });
 
+  const signal = AbortSignal.timeout(TIMEOUT_MS);
+
   try {
-    const response = await fetch(`${ENDPOINT}?${query}`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    const payload = (await response.json()) as LastFmResponse;
+    let payload = await requestRecentTracks(query, signal);
+    if (payload.error && TRANSIENT_ERRORS.has(payload.error)) {
+      payload = await requestRecentTracks(query, signal);
+    }
     if (payload.error) throw new Error(`last.fm error ${payload.error}: ${payload.message}`);
-    if (!response.ok) throw new Error(`last.fm responded ${response.status}`);
 
     const tracks = payload.recenttracks?.track;
     return toListening(Array.isArray(tracks) ? tracks[0] : tracks);

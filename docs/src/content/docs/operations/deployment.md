@@ -25,6 +25,7 @@ specific APIs.
 | --- | --- |
 | `YOUTUBE_API_KEY` | Static channel numbers, logged once per request on the server. |
 | `RESEND_API_KEY`, `CONTACT_TO_EMAIL` | The contact form reports it cannot deliver and points at the email address. |
+| `LASTFM_API_KEY`, `LASTFM_USERNAME` | The GitHub now playing card shows its off air state. |
 
 ## Analytics
 
