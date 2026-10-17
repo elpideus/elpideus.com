@@ -53,6 +53,7 @@ export default defineConfig({
             { label: "Curriculum PDF", slug: "services/curriculum" },
             { label: "Channel statistics", slug: "services/channel-stats" },
             { label: "Contact delivery", slug: "services/contact" },
+            { label: "Now playing card", slug: "services/now-playing" },
           ],
         },
         {
