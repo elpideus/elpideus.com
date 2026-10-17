@@ -32,6 +32,10 @@ progress bar.
 3. **Off air**: no credentials, no history or Last.fm is down. This is the fallback for every
    failure, logged to the server console and never shown as an error.
 
+Last.fm now and then answers with error 8, "operation failed", even when nothing is down, and a
+second request usually goes through. Error 8 and error 16, its temporary error, get one retry
+inside the same four second budget before the card falls back to off air.
+
 ## Artwork
 
 An SVG shown through `<img>` cannot load anything, so the cover is fetched on the server and
